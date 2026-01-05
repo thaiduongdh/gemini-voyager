@@ -11,6 +11,7 @@ import { startPromptManager } from './prompt/index';
 import { startSidebarWidthAdjuster } from './sidebarWidth';
 import { startTimeline } from './timeline/index';
 import { startWatermarkRemover } from './watermarkRemover/index';
+import initFloatingUI from './modules/sendToGemini/floating_ui';
 
 
 import { startFormulaCopy } from '@/features/formulaCopy';
@@ -96,6 +97,11 @@ async function initializeFeatures(): Promise<void> {
     }
 
     console.log('[Gemini Voyager] Not a custom website, checking for Gemini/AI Studio');
+
+    // Init Floating UI (Send to Gemini) on YouTube
+    if (location.hostname.includes('youtube.com')) {
+      initFloatingUI();
+    }
 
     if (location.hostname === 'gemini.google.com') {
       // Timeline is most resource-intensive, start it first
@@ -198,11 +204,12 @@ function handleVisibilityChange(): void {
     const isSupportedSite =
       hostname.includes('gemini.google.com') ||
       hostname.includes('aistudio.google.com') ||
-      hostname.includes('aistudio.google.cn');
+      hostname.includes('aistudio.google.cn') ||
+      hostname.includes('youtube.com'); // Added YouTube support
 
     // Initialize KaTeX configuration early to suppress Unicode warnings
     // This must run before any formulas are rendered on the page
-    if (isSupportedSite) {
+    if (isSupportedSite && !hostname.includes('youtube.com')) {
       initKaTeXConfig();
     }
 

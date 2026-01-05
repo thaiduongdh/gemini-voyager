@@ -5,6 +5,10 @@ import { StorageKeys } from '@/core/types/common';
 import type { FolderData } from '@/core/types/folder';
 import type { SyncMode, SyncData, PromptItem } from '@/core/types/sync';
 import type { StarredMessage, StarredMessagesData } from '@/pages/content/timeline/starredTypes';
+import { initSendToGeminiModule } from './modules/sendToGemini/index';
+
+// Initialize Send To Gemini Module
+initSendToGeminiModule();
 
 /**
  * Centralized starred messages management to prevent race conditions.
