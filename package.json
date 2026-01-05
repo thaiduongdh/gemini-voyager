@@ -1,9 +1,9 @@
 {
-  "name": "gemini-voyager",
+  "name": "gemini-utils",
   "version": "1.0.5",
-  "description": "Supercharge your Gemini experience with timeline navigation, folder organization, prompt library, and chat export.",
+  "description": "Utility tools for Gemini: timeline, folders, prompts, export, width controls.",
   "license": "MIT",
-  "author": "Jesse Zhang",
+  "author": "",
   "repository": {
     "type": "git",
     "url": "https://github.com/Nagi-ovo/gemini-voyager.git"

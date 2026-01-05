@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import browser from 'webextension-polyfill';
 
 import { DarkModeToggle } from '../../components/DarkModeToggle';
-import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+// import { LanguageSwitcher } from '../../components/LanguageSwitcher'; // Removed
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardTitle } from '../../components/ui/card';
 import { Label } from '../../components/ui/label';
@@ -99,6 +99,10 @@ interface SettingsUpdate {
   hideArchivedConversations?: boolean;
   customWebsites?: string[];
   watermarkRemoverEnabled?: boolean;
+  chatWidthEnabled?: boolean;
+  promptTriggerEnabled?: boolean;
+  conversationStatsEnabled?: boolean;
+  messageTimestampsEnabled?: boolean;
 }
 
 export default function Popup() {
@@ -116,6 +120,10 @@ export default function Popup() {
   const [extVersion, setExtVersion] = useState<string | null>(null);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
   const [watermarkRemoverEnabled, setWatermarkRemoverEnabled] = useState<boolean>(true);
+  const [chatWidthEnabled, setChatWidthEnabled] = useState<boolean>(true);
+  const [promptTriggerEnabled, setPromptTriggerEnabled] = useState<boolean>(true);
+  const [conversationStatsEnabled, setConversationStatsEnabled] = useState<boolean>(true);
+  const [messageTimestampsEnabled, setMessageTimestampsEnabled] = useState<boolean>(true);
 
   const handleFormulaCopyFormatChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +149,10 @@ export default function Popup() {
     if (settings.resetPosition) payload.geminiTimelinePosition = null;
     if (settings.customWebsites) payload.gvPromptCustomWebsites = settings.customWebsites;
     if (typeof settings.watermarkRemoverEnabled === 'boolean') payload.geminiWatermarkRemoverEnabled = settings.watermarkRemoverEnabled;
+    if (typeof settings.chatWidthEnabled === 'boolean') payload.gvChatWidthEnabled = settings.chatWidthEnabled;
+    if (typeof settings.promptTriggerEnabled === 'boolean') payload.gvPromptTriggerEnabled = settings.promptTriggerEnabled;
+    if (typeof settings.conversationStatsEnabled === 'boolean') payload.gvConversationStatsEnabled = settings.conversationStatsEnabled;
+    if (typeof settings.messageTimestampsEnabled === 'boolean') payload.gvMessageTimestampsEnabled = settings.messageTimestampsEnabled;
     try {
       chrome.storage?.sync?.set(payload);
     } catch { }
@@ -278,6 +290,10 @@ export default function Popup() {
           gvPromptCustomWebsites: [],
           gvFormulaCopyFormat: 'latex',
           geminiWatermarkRemoverEnabled: true,
+          gvChatWidthEnabled: true,
+          gvPromptTriggerEnabled: true,
+          gvConversationStatsEnabled: true,
+          gvMessageTimestampsEnabled: true,
         },
         (res) => {
           const m = res?.geminiTimelineScrollMode as ScrollMode;
@@ -290,6 +306,10 @@ export default function Popup() {
           setHideArchivedConversations(!!res?.geminiFolderHideArchivedConversations);
           setCustomWebsites(Array.isArray(res?.gvPromptCustomWebsites) ? res.gvPromptCustomWebsites : []);
           setWatermarkRemoverEnabled(res?.geminiWatermarkRemoverEnabled !== false);
+          setChatWidthEnabled(res?.gvChatWidthEnabled !== false);
+          setPromptTriggerEnabled(res?.gvPromptTriggerEnabled !== false);
+          setConversationStatsEnabled(res?.gvConversationStatsEnabled !== false);
+          setMessageTimestampsEnabled(res?.gvMessageTimestampsEnabled !== false);
         }
       );
     } catch { }
@@ -377,13 +397,12 @@ export default function Popup() {
   return (
     <div className="w-[360px] bg-background text-foreground">
       {/* Header */}
-      <div className="bg-linear-to-br from-primary/10 via-accent/5 to-transparent border-b border-border/50 px-5 py-4 flex items-center justify-between backdrop-blur-sm">
-        <h1 className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+      <div className="border-b border-border/50 px-5 py-3 flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">
           {t('extName')}
         </h1>
         <div className="flex items-center gap-1">
           <DarkModeToggle />
-          <LanguageSwitcher />
         </div>
       </div>
 
@@ -602,7 +621,65 @@ export default function Popup() {
           onChangeComplete={sidebarWidthAdjuster.handleChangeComplete}
         />
 
-        {/* Formula Copy Options */}
+        {/* Display Options */}
+        <Card className="p-4">
+          <CardTitle className="mb-4 text-xs uppercase">Display Options</CardTitle>
+          <CardContent className="p-0 space-y-4">
+            <div className="flex items-center justify-between group">
+              <Label htmlFor="chat-width-enabled" className="cursor-pointer text-sm font-medium">
+                Enable chat width override
+              </Label>
+              <Switch
+                id="chat-width-enabled"
+                checked={chatWidthEnabled}
+                onChange={(e) => {
+                  setChatWidthEnabled(e.target.checked);
+                  apply({ chatWidthEnabled: e.target.checked });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between group">
+              <Label htmlFor="prompt-trigger-enabled" className="cursor-pointer text-sm font-medium">
+                Show floating prompt button
+              </Label>
+              <Switch
+                id="prompt-trigger-enabled"
+                checked={promptTriggerEnabled}
+                onChange={(e) => {
+                  setPromptTriggerEnabled(e.target.checked);
+                  apply({ promptTriggerEnabled: e.target.checked });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between group">
+              <Label htmlFor="conversation-stats-enabled" className="cursor-pointer text-sm font-medium">
+                Show conversation stats
+              </Label>
+              <Switch
+                id="conversation-stats-enabled"
+                checked={conversationStatsEnabled}
+                onChange={(e) => {
+                  setConversationStatsEnabled(e.target.checked);
+                  apply({ conversationStatsEnabled: e.target.checked });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between group">
+              <Label htmlFor="message-timestamps-enabled" className="cursor-pointer text-sm font-medium">
+                Show message timestamps
+              </Label>
+              <Switch
+                id="message-timestamps-enabled"
+                checked={messageTimestampsEnabled}
+                onChange={(e) => {
+                  setMessageTimestampsEnabled(e.target.checked);
+                  apply({ messageTimestampsEnabled: e.target.checked });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="p-4 hover:shadow-lg transition-shadow">
           <CardTitle className="mb-4 text-xs uppercase">{t('formulaCopyFormat')}</CardTitle>
           <CardContent className="p-0 space-y-3">
@@ -785,31 +862,11 @@ export default function Popup() {
       </div>
 
       {/* Footer */}
-      <div className="bg-linear-to-br from-secondary/30 via-accent/10 to-transparent border-t border-border/50 px-5 py-4 flex items-center justify-between gap-3 backdrop-blur-sm">
+      <div className="border-t border-border/50 px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground/80">{t('extensionVersion')}</span>
-          <a
-            href={releaseUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-primary hover:text-primary/80 transition-colors"
-            title={extVersion ? extVersion : undefined}
-          >
-            {extVersion ?? '...'}
-          </a>
+          <span>{t('extensionVersion')}</span>
+          <span className="text-foreground">{extVersion ?? '...'}</span>
         </div>
-        <a
-          href="https://github.com/Nagi-ovo/gemini-voyager"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-semibold transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-          title={t('starProject')}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z" />
-          </svg>
-          <span>{t('starProject')}</span>
-        </a>
       </div>
     </div>
   );

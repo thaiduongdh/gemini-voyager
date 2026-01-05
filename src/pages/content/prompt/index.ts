@@ -304,6 +304,20 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     await initI18n();
     const i18n = createI18n();
 
+    // Check if prompt trigger is enabled (default: true)
+    let triggerEnabled = true;
+    try {
+      const result = await chrome.storage?.sync?.get({ gvPromptTriggerEnabled: true });
+      triggerEnabled = result?.gvPromptTriggerEnabled !== false;
+    } catch {
+      // Fallback to enabled if storage check fails
+    }
+
+    // Return early if trigger is disabled
+    if (!triggerEnabled) {
+      return { destroy: () => { } };
+    }
+
     // Prevent duplicate injection
     if (document.getElementById(ID.trigger)) return { destroy: () => { } };
 
@@ -447,22 +461,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
 
     const controls = createEl('div', 'gv-pm-controls');
 
-    const langSel = createEl('select', 'gv-pm-lang');
-    const optEn = createEl('option');
-    optEn.value = 'en';
-    optEn.textContent = 'English';
-    const optZh = createEl('option');
-    optZh.value = 'zh';
-    optZh.textContent = '中文';
-    langSel.appendChild(optEn);
-    langSel.appendChild(optZh);
-    // Set initial language value asynchronously
-    i18n.get().then((lang) => {
-      langSel.value = lang;
-    }).catch(() => {
-      langSel.value = 'en';
-    });
-
+    // Language selector removed for utilitarian version
     const lockBtn = createEl('button', 'gv-pm-lock');
     lockBtn.setAttribute('aria-pressed', 'false');
     lockBtn.setAttribute('data-icon', '🔓');
@@ -471,7 +470,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     const addBtn = createEl('button', 'gv-pm-add');
     addBtn.textContent = i18n.t('pm_add');
 
-    controls.appendChild(langSel);
+    // controls.appendChild(langSel);
     controls.appendChild(addBtn);
     controls.appendChild(lockBtn);
     header.appendChild(dragHandle);
@@ -516,26 +515,18 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     settingsBtn.textContent = i18n.t('pm_settings');
     settingsBtn.title = i18n.t('pm_settings_tooltip');
 
-    const gh = document.createElement('a');
-    gh.className = 'gv-pm-gh';
-    gh.href = 'https://github.com/Nagi-ovo/gemini-voyager';
-    gh.target = '_blank';
-    gh.rel = 'noreferrer';
-    gh.title = i18n.t('starProject');
-
     // Add icon and text
-    const ghIcon = document.createElement('span');
-    ghIcon.className = 'gv-pm-gh-icon';
-    const ghText = document.createElement('span');
-    ghText.className = 'gv-pm-gh-text';
-    ghText.textContent = i18n.t('starProject');
-    gh.appendChild(ghIcon);
-    gh.appendChild(ghText);
+    // (GitHub link removed for utilitarian version)
 
     secondaryActions.appendChild(importBtn);
     secondaryActions.appendChild(exportBtn);
     secondaryActions.appendChild(settingsBtn);
-    secondaryActions.appendChild(gh);
+    // secondaryActions.appendChild(gh); // Removed
+
+    secondaryActions.appendChild(importBtn);
+    secondaryActions.appendChild(exportBtn);
+    secondaryActions.appendChild(settingsBtn);
+    // secondaryActions.appendChild(gh); // Removed
 
     footer.appendChild(primaryActions);
     footer.appendChild(secondaryActions);
@@ -830,9 +821,9 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
       backupBtn.title = i18n.t('pm_backup_tooltip');
       settingsBtn.textContent = i18n.t('pm_settings');
       settingsBtn.title = i18n.t('pm_settings_tooltip');
-      gh.title = i18n.t('starProject');
-      const ghTextEl = gh.querySelector('.gv-pm-gh-text');
-      if (ghTextEl) ghTextEl.textContent = i18n.t('starProject');
+      // gh.title = i18n.t('starProject');
+      // const ghTextEl = gh.querySelector('.gv-pm-gh-text');
+      // if (ghTextEl) ghTextEl.textContent = i18n.t('starProject');
       (addForm.querySelector('.gv-pm-input-text') as HTMLTextAreaElement).placeholder =
         i18n.t('pm_prompt_placeholder');
       (addForm.querySelector('.gv-pm-input-tags') as HTMLInputElement).placeholder =
@@ -980,11 +971,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     };
     window.addEventListener('pointerup', onTriggerDragEnd, { passive: true });
 
-    langSel.addEventListener('change', async () => {
-      const next = langSel.value as 'en' | 'zh';
-      await i18n.set(next);
-      refreshUITexts();
-    });
+    // langSel event listener removed
 
     // Listen to external language changes (popup/options)
     // Note: The centralized i18n system already handles storage changes,
@@ -992,10 +979,11 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     const storageChangeHandler = (changes: any, area: string) => {
       // Handle language changes from sync storage
       if (area === 'sync' && changes?.language?.newValue) {
-        const next = changes.language.newValue;
-        try {
-          langSel.value = next.startsWith('zh') ? 'zh' : 'en';
-        } catch { }
+        // Language handling removed
+        // const next = changes.language.newValue;
+        // try {
+        //   langSel.value = next.startsWith('zh') ? 'zh' : 'en';
+        // } catch { }
         refreshUITexts();
       }
       // Handle prompt data changes from cloud sync (local storage)

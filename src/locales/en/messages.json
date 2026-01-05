@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "Gemini Voyager",
+    "message": "Gemini Utils",
     "description": "Extension name"
   },
   "extDescription": {
-    "message": "Supercharge your Gemini experience with timeline navigation, folder organization, prompt library, and chat export.",
+    "message": "Utility tools for Gemini: timeline, folders, prompts, export, width controls.",
     "description": "Extension description"
   },
   "scrollMode": {
@@ -40,7 +40,7 @@
     "description": "Language label"
   },
   "pm_title": {
-    "message": "Gemini Voyager",
+    "message": "Gemini Utils",
     "description": "Prompt Manager title"
   },
   "pm_add": {
@@ -208,7 +208,7 @@
     "description": "CTA to update to latest version"
   },
   "starProject": {
-    "message": "Support me ⭐",
+    "message": "",
     "description": "Github callout"
   },
   "exportChatJson": {

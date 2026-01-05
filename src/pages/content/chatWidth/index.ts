@@ -164,26 +164,84 @@ function removeStyles() {
 
 export function startChatWidthAdjuster() {
   let currentWidthPercent = DEFAULT_PERCENT;
+  let enabled = true;
+  let observer: MutationObserver | null = null;
 
-  // Load initial width (%), migrating legacy px values when seen
-  chrome.storage?.sync?.get({ geminiChatWidth: DEFAULT_PERCENT }, (res) => {
-    const storedWidth = res?.geminiChatWidth;
-    const normalized = normalizePercent(storedWidth, DEFAULT_PERCENT);
-    currentWidthPercent = normalized;
-    applyWidth(currentWidthPercent);
+  const setupObserver = () => {
+    if (observer) return;
 
-    if (typeof storedWidth === 'number' && storedWidth !== normalized) {
-      try {
-        chrome.storage?.sync?.set({ geminiChatWidth: normalized });
-      } catch (e) {
-        console.warn('[Gemini Voyager] Failed to migrate chat width to %:', e);
+    let debounceTimer: number | null = null;
+    observer = new MutationObserver(() => {
+      if (!enabled) return;
+      if (debounceTimer !== null) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(() => {
+        applyWidth(currentWidthPercent);
+        debounceTimer = null;
+      }, 200);
+    });
+
+    const main = document.querySelector('main');
+    if (main) {
+      observer.observe(main, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  };
+
+  // Load initial settings
+  chrome.storage?.sync?.get(
+    {
+      geminiChatWidth: DEFAULT_PERCENT,
+      gvChatWidthEnabled: true
+    },
+    (res: { geminiChatWidth?: number; gvChatWidthEnabled?: boolean }) => {
+      enabled = res?.gvChatWidthEnabled !== false;
+
+      if (enabled) {
+        const storedWidth = res?.geminiChatWidth;
+        const normalized = normalizePercent(storedWidth ?? DEFAULT_PERCENT, DEFAULT_PERCENT);
+        currentWidthPercent = normalized;
+        applyWidth(currentWidthPercent);
+        setupObserver();
+
+        if (typeof storedWidth === 'number' && storedWidth !== normalized) {
+          try {
+            chrome.storage?.sync?.set({ geminiChatWidth: normalized });
+          } catch (e) {
+            console.warn('[Gemini Voyager] Failed to migrate chat width to %:', e);
+          }
+        }
       }
     }
-  });
+  );
 
   // Listen for changes from storage
-  const storageChangeHandler = (changes: any, area: string) => {
-    if (area === 'sync' && changes.geminiChatWidth) {
+  const storageChangeHandler = (
+    changes: { [key: string]: chrome.storage.StorageChange },
+    area: string
+  ) => {
+    if (area !== 'sync') return;
+
+    // Handle enable/disable toggle
+    if ('gvChatWidthEnabled' in changes) {
+      enabled = changes.gvChatWidthEnabled.newValue !== false;
+      if (enabled) {
+        applyWidth(currentWidthPercent);
+        setupObserver();
+      } else {
+        removeStyles();
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+    }
+
+    // Handle width change
+    if (changes.geminiChatWidth && enabled) {
       const newWidth = changes.geminiChatWidth.newValue;
       if (typeof newWidth === 'number') {
         const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
@@ -203,34 +261,10 @@ export function startChatWidthAdjuster() {
 
   chrome.storage?.onChanged?.addListener(storageChangeHandler);
 
-  // Re-apply styles when DOM changes (for dynamic content)
-  // Use debouncing and cache the width to avoid storage reads
-  let debounceTimer: number | null = null;
-  const observer = new MutationObserver(() => {
-    if (debounceTimer !== null) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = window.setTimeout(() => {
-      // Use cached width instead of reading from storage
-      applyWidth(currentWidthPercent);
-      debounceTimer = null;
-    }, 200);
-  });
-
-  // Observe the main conversation area for changes
-  const main = document.querySelector('main');
-  if (main) {
-    observer.observe(main, {
-      childList: true,
-      subtree: true,
-    });
-  }
-
   // Clean up on unload to prevent memory leaks
   window.addEventListener('beforeunload', () => {
-    observer.disconnect();
+    if (observer) observer.disconnect();
     removeStyles();
-    // Remove storage listener
     try {
       chrome.storage?.onChanged?.removeListener(storageChangeHandler);
     } catch (e) {
@@ -238,3 +272,4 @@ export function startChatWidthAdjuster() {
     }
   }, { once: true });
 }
+

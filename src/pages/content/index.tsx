@@ -1,10 +1,12 @@
 import { startChatWidthAdjuster } from './chatWidth/index';
+import { startConversationStats } from './conversationStats/index';
 import { startDeepResearchExport } from './deepResearch/index';
 import { startEditInputWidthAdjuster } from './editInputWidth/index';
 import { startExportButton } from './export/index';
 import { startAIStudioFolderManager } from './folder/aistudio';
 import { startFolderManager } from './folder/index';
 import { initKaTeXConfig } from './katexConfig';
+import { startMessageTimestamps } from './messageTimestamps/index';
 import { startPromptManager } from './prompt/index';
 import { startSidebarWidthAdjuster } from './sidebarWidth';
 import { startTimeline } from './timeline/index';
@@ -35,6 +37,8 @@ let initialized = false;
 let initializationTimer: number | null = null;
 let folderManagerInstance: Awaited<ReturnType<typeof startFolderManager>> | null = null;
 let promptManagerInstance: Awaited<ReturnType<typeof startPromptManager>> | null = null;
+let conversationStatsInstance: ReturnType<typeof startConversationStats> | null = null;
+let messageTimestampsInstance: ReturnType<typeof startMessageTimestamps> | null = null;
 
 /**
  * Check if current hostname matches any custom websites
@@ -119,6 +123,14 @@ async function initializeFeatures(): Promise<void> {
       await delay(LIGHT_FEATURE_INIT_DELAY);
 
       startDeepResearchExport();
+      await delay(LIGHT_FEATURE_INIT_DELAY);
+
+      // Conversation statistics
+      conversationStatsInstance = startConversationStats();
+      await delay(LIGHT_FEATURE_INIT_DELAY);
+
+      // Message timestamps
+      messageTimestampsInstance = startMessageTimestamps();
       await delay(LIGHT_FEATURE_INIT_DELAY);
     }
 
@@ -243,6 +255,14 @@ function handleVisibilityChange(): void {
         if (promptManagerInstance) {
           promptManagerInstance.destroy();
           promptManagerInstance = null;
+        }
+        if (conversationStatsInstance) {
+          conversationStatsInstance.destroy();
+          conversationStatsInstance = null;
+        }
+        if (messageTimestampsInstance) {
+          messageTimestampsInstance.destroy();
+          messageTimestampsInstance = null;
         }
       } catch (e) {
         console.error('[Gemini Voyager] Cleanup error:', e);
