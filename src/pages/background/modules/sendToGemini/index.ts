@@ -22,13 +22,7 @@ import {
 } from './gemini_service';
 import { handleChatGPT } from './chatgpt_service';
 import { refreshContextMenus, initContextMenus, setupContextMenuListeners } from './context_menus';
-import { trackEvent, trackError, trackTiming, AnalyticsCategory, AnalyticsAction } from './analytics'; // MOCKED for now or need porting
-
-// Mock Analytics for minimal dependencies
-// If you want real analytics, port analytics.ts. For now, I'll mock it here to save time.
-// Wait, I should import it if I want to use it.
-// I'll create a simple mocked analytics.ts at the end or inside this file.
-// Let's create a separate simple analytics mock in the same folder.
+// Analytics removed for utilitarian build
 
 function sendQueueStatus(
     status: 'started' | 'progress' | 'complete' | 'error',
@@ -57,7 +51,7 @@ function initListeners() {
                 refreshContextMenus();
             }
             if (changes.stg_geminiAuthUser) {
-                setGeminiAuthUserCache(changes.stg_geminiAuthUser.newValue);
+                setGeminiAuthUserCache(changes.stg_geminiAuthUser.newValue as string | number | null | undefined);
             }
         }
     });
@@ -65,8 +59,8 @@ function initListeners() {
     chrome.runtime.onMessage.addListener((request: ExtensionMessage) => {
         if (request.action === 'process_queue') {
             const queue: QueueItem[] = request.queue || [];
-            const target = request.target || 'gemini';
-            const customPrompt = request.customPrompt;
+            const target: string = request.target || 'gemini';
+            const customPrompt: string | undefined = request.customPrompt;
 
             if (queue.length === 0) return;
 
@@ -146,7 +140,7 @@ function initListeners() {
                         chrome.tabs.create({ url: chatgptUrl }, (newTab) => {
                             if (!newTab?.id) return;
                             const tabId = newTab.id;
-                            const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                            const listener = (updatedTabId: number, changeInfo: any) => {
                                 if (updatedTabId === tabId && changeInfo.status === 'complete') {
                                     chrome.scripting.executeScript(
                                         {
@@ -222,7 +216,7 @@ function initStorageDefaults() {
 }
 
 export function initSendToGeminiModule() {
-    console.log('Initializing SendToGemini Module...');
+
     initStorageDefaults();
     updateBadge();
     loadGeminiAuthUser();

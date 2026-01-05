@@ -28,8 +28,7 @@ export function loadGeminiAuthUser(): void {
     chrome.storage.local.get(
         { stg_geminiAuthUser: DEFAULT_GEMINI_AUTH_USER },
         ({ stg_geminiAuthUser }) => {
-            console.log('[SendToGemini] Loaded Auth User:', stg_geminiAuthUser);
-            setGeminiAuthUserCache(stg_geminiAuthUser);
+            setGeminiAuthUserCache(stg_geminiAuthUser as string | number | null | undefined);
         }
     );
 }
@@ -143,7 +142,7 @@ export function handleGemini(url: string | null, prompt: string | null = null): 
         (settings) => {
             const geminiUrl = getGeminiUrl();
             const finalPrompt =
-                prompt || buildGeminiPromptForUrl(url || '', null, settings.stg_appendYoutubeInstruction);
+                prompt || buildGeminiPromptForUrl(url || '', null, settings.stg_appendYoutubeInstruction as boolean);
 
             appendDebugLog({
                 level: 'info',
@@ -162,7 +161,7 @@ export function handleGemini(url: string | null, prompt: string | null = null): 
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
-                const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                const listener = (updatedTabId: number, changeInfo: any) => {
                     if (updatedTabId === tabId && changeInfo.status === 'complete') {
                         chrome.scripting.executeScript(
                             {
@@ -193,7 +192,7 @@ export function getStoredRandomImagePrompt(): Promise<string> {
         chrome.storage.local.get(
             { stg_randomImagePrompt: DEFAULT_RANDOM_IMAGE_PROMPT },
             ({ stg_randomImagePrompt }) => {
-                resolve(stg_randomImagePrompt || '');
+                resolve((stg_randomImagePrompt as string) || '');
             }
         );
     });
@@ -305,7 +304,7 @@ export async function handleGeminiImage({
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
-                const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                const listener = (updatedTabId: number, changeInfo: any) => {
                     if (updatedTabId === tabId && changeInfo.status === 'complete') {
                         chrome.scripting.executeScript(
                             {
@@ -382,7 +381,7 @@ export async function handleGeminiVideo({
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
-                const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+                const listener = (updatedTabId: number, changeInfo: any) => {
                     if (updatedTabId === tabId && changeInfo.status === 'complete') {
                         chrome.scripting.executeScript(
                             {

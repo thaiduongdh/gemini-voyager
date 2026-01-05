@@ -9,6 +9,8 @@
 *   **Chrome Only**: Remove Firefox/Safari build targets and code paths.
 *   **English Only**: Remove all localization logic (chinese, etc.). Default to English.
 *   **Manual Maintenance**: No upstream merges. Manual porting of features.
+*   **Personal Use Only**: No "growth" features (analytics, rating prompts).
+*   **Architecture**: Modular "Meta-Extension" design.
 *   **Token/Word Counter**: **MUST BE VISIBLE** and functional. (Critical: Fixed z-index but needs logic verification).
 *   **Message Timestamps**: Show "just now" or relative time. **NO DUPLICATES** (User reported duplication persists).
 *   **Export**: Support Markdown/JSON export. English only.
@@ -23,6 +25,7 @@
 *   **Deep Research**: Download button integration.
 
 ## Technical Constraints
+*   **Architecture**: "Meta-Extension" (Core + `public/modules`).
 *   **Build System**: Vite + CRXJS.
 *   **Storage**: `chrome.storage.local` heavily used. `localStorage` backup (4x redundancy).
 *   **Linting**: Strict TypeScript. No `any` (where possible).
