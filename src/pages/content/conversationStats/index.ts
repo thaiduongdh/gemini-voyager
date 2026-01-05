@@ -66,20 +66,23 @@ function createStatsDisplay(stats: ConversationStats): HTMLElement {
     container.id = STATS_CONTAINER_ID;
     container.style.cssText = `
     position: fixed;
-    bottom: 80px;
-    left: 12px;
+    bottom: 20px;
+    left: 20px;
     background: var(--gm-sys-color-surface-container, #1e1e1e);
     color: var(--gm-sys-color-on-surface, #e3e3e3);
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
     font-size: 11px;
+    font-weight: 500;
     font-family: 'Google Sans', sans-serif;
-    z-index: 9999;
-    opacity: 0.85;
+    z-index: 2147483647;
+    opacity: 0.95;
     pointer-events: none;
     display: flex;
-    gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(4px);
   `;
 
     container.innerHTML = `

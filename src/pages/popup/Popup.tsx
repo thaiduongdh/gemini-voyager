@@ -433,38 +433,22 @@ export default function Popup() {
           </Card>
         )}
         {/* Gemini Only Notice */}
-        <Card className="p-3 bg-primary/10 border-primary/20 hover:shadow-lg transition-shadow">
-          <div className="flex items-center gap-2">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-primary shrink-0"
-            >
-              <path
-                d="M8 1C4.13 1 1 4.13 1 8s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7zm0 11c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm1-4H7V5h2v3z"
-                fill="currentColor"
-              />
-            </svg>
-            <p className="text-xs text-primary font-medium">{t('geminiOnlyNotice')}</p>
-          </div>
-        </Card>
+        {/* Gemini Only Notice - Removed for minimalism */}
+
         {/* Timeline Options */}
-        <Card className="p-4 hover:shadow-lg transition-shadow">
-          <CardTitle className="mb-4 text-xs uppercase">{t('timelineOptions')}</CardTitle>
-          <CardContent className="p-0 space-y-4">
+        <Card className="p-3 hover:shadow-sm transition-shadow">
+          <CardTitle className="mb-3 text-xs uppercase text-muted-foreground">{t('timelineOptions')}</CardTitle>
+          <CardContent className="p-0 space-y-3">
             {/* Scroll Mode */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">{t('scrollMode')}</Label>
-              <div className="relative grid grid-cols-2 rounded-lg bg-secondary/50 p-1 gap-1">
+              <Label className="text-xs font-medium mb-1.5 block">{t('scrollMode')}</Label>
+              <div className="relative grid grid-cols-2 rounded-md bg-secondary/50 p-0.5 gap-0.5">
                 <div
-                  className="absolute top-1 bottom-1 w-[calc(50%-6px)] rounded-md bg-primary shadow-md pointer-events-none transition-all duration-300 ease-out"
-                  style={{ left: mode === 'flow' ? '4px' : 'calc(50% + 2px)' }}
+                  className="absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded-sm bg-primary shadow-sm pointer-events-none transition-all duration-300 ease-out"
+                  style={{ left: mode === 'flow' ? '2px' : 'calc(50% + 2px)' }}
                 />
                 <button
-                  className={`relative z-10 px-3 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${mode === 'flow' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  className={`relative z-10 px-2 py-1.5 text-xs font-semibold rounded-sm transition-all duration-200 ${mode === 'flow' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   onClick={() => {
                     setMode('flow');
@@ -474,7 +458,7 @@ export default function Popup() {
                   {t('flow')}
                 </button>
                 <button
-                  className={`relative z-10 px-3 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${mode === 'jump' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  className={`relative z-10 px-2 py-1.5 text-xs font-semibold rounded-sm transition-all duration-200 ${mode === 'jump' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   onClick={() => {
                     setMode('jump');
@@ -485,200 +469,134 @@ export default function Popup() {
                 </button>
               </div>
             </div>
+
             <div className="flex items-center justify-between group">
-              <Label htmlFor="hide-container" className="cursor-pointer text-sm font-medium group-hover:text-primary transition-colors">
+              <Label htmlFor="hide-container" className="cursor-pointer text-xs font-medium group-hover:text-primary transition-colors">
                 {t('hideOuterContainer')}
               </Label>
               <Switch
                 id="hide-container"
                 checked={hideContainer}
+                className="scale-90"
                 onChange={(e) => {
                   setHideContainer(e.target.checked);
                   apply({ hideContainer: e.target.checked });
                 }}
               />
             </div>
+            {/* ... other switches compressed ... */}
             <div className="flex items-center justify-between group">
-              <Label htmlFor="draggable-timeline" className="cursor-pointer text-sm font-medium group-hover:text-primary transition-colors">
+              <Label htmlFor="draggable-timeline" className="cursor-pointer text-xs font-medium group-hover:text-primary transition-colors">
                 {t('draggableTimeline')}
               </Label>
               <Switch
                 id="draggable-timeline"
                 checked={draggableTimeline}
+                className="scale-90"
                 onChange={(e) => {
                   setDraggableTimeline(e.target.checked);
                   apply({ draggableTimeline: e.target.checked });
                 }}
               />
             </div>
-            {/* Reset Timeline Position Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full group hover:border-primary/50 mt-2"
-              onClick={() => {
-                apply({ resetPosition: true });
-              }}
-            >
-              <span className="group-hover:scale-105 transition-transform text-xs">{t('resetTimelinePosition')}</span>
-            </Button>
-            {/* View Starred History Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full group hover:border-primary/50 mt-2"
-              onClick={() => setShowStarredHistory(true)}
-            >
-              <span className="group-hover:scale-105 transition-transform text-xs flex items-center gap-1.5">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-primary"
-                >
-                  <path
-                    d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
-                    fill="currentColor"
-                  />
-                </svg>
-                {t('viewStarredHistory')}
-              </span>
-            </Button>
           </CardContent>
         </Card>
-        {/* Folder Options */}
-        <Card className="p-4 hover:shadow-lg transition-shadow">
-          <CardTitle className="mb-4 text-xs uppercase">{t('folderOptions')}</CardTitle>
-          <CardContent className="p-0 space-y-4">
-            <div className="flex items-center justify-between group">
-              <Label htmlFor="folder-enabled" className="cursor-pointer text-sm font-medium group-hover:text-primary transition-colors">
-                {t('enableFolderFeature')}
-              </Label>
-              <Switch
-                id="folder-enabled"
-                checked={folderEnabled}
-                onChange={(e) => {
-                  setFolderEnabled(e.target.checked);
-                  apply({ folderEnabled: e.target.checked });
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between group">
-              <Label htmlFor="hide-archived" className="cursor-pointer text-sm font-medium group-hover:text-primary transition-colors">
-                {t('hideArchivedConversations')}
-              </Label>
-              <Switch
-                id="hide-archived"
-                checked={hideArchivedConversations}
-                onChange={(e) => {
-                  setHideArchivedConversations(e.target.checked);
-                  apply({ hideArchivedConversations: e.target.checked });
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        {/* Cloud Sync - Hidden on Safari due to API limitations */}
-        {!isSafari() && <CloudSyncSettings />}
-        {/* Chat Width */}
-        <WidthSlider
-          label={t('chatWidth')}
-          value={chatWidthAdjuster.width}
-          min={CHAT_PERCENT.min}
-          max={CHAT_PERCENT.max}
-          step={1}
-          narrowLabel={t('chatWidthNarrow')}
-          wideLabel={t('chatWidthWide')}
-          onChange={chatWidthAdjuster.handleChange}
-          onChangeComplete={chatWidthAdjuster.handleChangeComplete}
-        />
-        {/* Edit Input Width */}
-        <WidthSlider
-          label={t('editInputWidth')}
-          value={editInputWidthAdjuster.width}
-          min={EDIT_PERCENT.min}
-          max={EDIT_PERCENT.max}
-          step={1}
-          narrowLabel={t('editInputWidthNarrow')}
-          wideLabel={t('editInputWidthWide')}
-          onChange={editInputWidthAdjuster.handleChange}
-          onChangeComplete={editInputWidthAdjuster.handleChangeComplete}
-        />
 
-        {/* Sidebar Width */}
-        <WidthSlider
-          label={t('sidebarWidth')}
-          value={sidebarWidthAdjuster.width}
-          min={SIDEBAR_PX.min}
-          max={SIDEBAR_PX.max}
-          step={8}
-          narrowLabel={t('sidebarWidthNarrow')}
-          wideLabel={t('sidebarWidthWide')}
-          valueFormatter={(v) => `${v}px`}
-          onChange={sidebarWidthAdjuster.handleChange}
-          onChangeComplete={sidebarWidthAdjuster.handleChangeComplete}
-        />
-
-        {/* Display Options */}
-        <Card className="p-4">
-          <CardTitle className="mb-4 text-xs uppercase">Display Options</CardTitle>
+        {/* Width Settings - Combined */}
+        <Card className="p-3 hover:shadow-sm transition-shadow">
+          <CardTitle className="mb-3 text-xs uppercase text-muted-foreground">Layout & Width</CardTitle>
           <CardContent className="p-0 space-y-4">
+            {/* Chat Width Toggle */}
             <div className="flex items-center justify-between group">
-              <Label htmlFor="chat-width-enabled" className="cursor-pointer text-sm font-medium">
-                Enable chat width override
-              </Label>
+              <div className="space-y-0.5">
+                <Label htmlFor="chat-width-enabled" className="cursor-pointer text-xs font-medium">
+                  Custom Chat Width
+                </Label>
+                <p className="text-[10px] text-muted-foreground">Turn off to use Gemini default</p>
+              </div>
               <Switch
                 id="chat-width-enabled"
                 checked={chatWidthEnabled}
+                className="scale-90"
                 onChange={(e) => {
                   setChatWidthEnabled(e.target.checked);
                   apply({ chatWidthEnabled: e.target.checked });
                 }}
               />
             </div>
-            <div className="flex items-center justify-between group">
-              <Label htmlFor="prompt-trigger-enabled" className="cursor-pointer text-sm font-medium">
-                Show floating prompt button
-              </Label>
-              <Switch
-                id="prompt-trigger-enabled"
-                checked={promptTriggerEnabled}
-                onChange={(e) => {
-                  setPromptTriggerEnabled(e.target.checked);
-                  apply({ promptTriggerEnabled: e.target.checked });
-                }}
+
+            {chatWidthEnabled && (
+              <WidthSlider
+                label=""
+                value={chatWidthAdjuster.width}
+                min={CHAT_PERCENT.min}
+                max={CHAT_PERCENT.max}
+                step={1}
+
+                narrowLabel="Narrow"
+                wideLabel="Wide"
+                onChange={chatWidthAdjuster.handleChange}
+                onChangeComplete={chatWidthAdjuster.handleChangeComplete}
               />
-            </div>
-            <div className="flex items-center justify-between group">
-              <Label htmlFor="conversation-stats-enabled" className="cursor-pointer text-sm font-medium">
-                Show conversation stats
-              </Label>
-              <Switch
-                id="conversation-stats-enabled"
-                checked={conversationStatsEnabled}
-                onChange={(e) => {
-                  setConversationStatsEnabled(e.target.checked);
-                  apply({ conversationStatsEnabled: e.target.checked });
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between group">
-              <Label htmlFor="message-timestamps-enabled" className="cursor-pointer text-sm font-medium">
-                Show message timestamps
-              </Label>
-              <Switch
-                id="message-timestamps-enabled"
-                checked={messageTimestampsEnabled}
-                onChange={(e) => {
-                  setMessageTimestampsEnabled(e.target.checked);
-                  apply({ messageTimestampsEnabled: e.target.checked });
-                }}
-              />
-            </div>
+            )}
+
+            <div className="h-px bg-border/50 my-2" />
+
+            {/* Edit Input Width */}
+            <WidthSlider
+              label={t('editInputWidth')}
+              value={editInputWidthAdjuster.width}
+              min={EDIT_PERCENT.min}
+              max={EDIT_PERCENT.max}
+              step={1}
+              padding="py-0"
+              narrowLabel="Narrow"
+              wideLabel="Wide"
+              onChange={editInputWidthAdjuster.handleChange}
+              onChangeComplete={editInputWidthAdjuster.handleChangeComplete}
+            />
           </CardContent>
         </Card>
+        <div className="flex items-center justify-between group">
+          <Label htmlFor="prompt-trigger-enabled" className="cursor-pointer text-sm font-medium">
+            Show floating prompt button
+          </Label>
+          <Switch
+            id="prompt-trigger-enabled"
+            checked={promptTriggerEnabled}
+            onChange={(e) => {
+              setPromptTriggerEnabled(e.target.checked);
+              apply({ promptTriggerEnabled: e.target.checked });
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between group">
+          <Label htmlFor="conversation-stats-enabled" className="cursor-pointer text-sm font-medium">
+            Show conversation stats
+          </Label>
+          <Switch
+            id="conversation-stats-enabled"
+            checked={conversationStatsEnabled}
+            onChange={(e) => {
+              setConversationStatsEnabled(e.target.checked);
+              apply({ conversationStatsEnabled: e.target.checked });
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between group">
+          <Label htmlFor="message-timestamps-enabled" className="cursor-pointer text-sm font-medium">
+            Show message timestamps
+          </Label>
+          <Switch
+            id="message-timestamps-enabled"
+            checked={messageTimestampsEnabled}
+            onChange={(e) => {
+              setMessageTimestampsEnabled(e.target.checked);
+              apply({ messageTimestampsEnabled: e.target.checked });
+            }}
+          />
+        </div>
+
 
         <Card className="p-4 hover:shadow-lg transition-shadow">
           <CardTitle className="mb-4 text-xs uppercase">{t('formulaCopyFormat')}</CardTitle>
@@ -859,15 +777,15 @@ export default function Popup() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div >
 
       {/* Footer */}
-      <div className="border-t border-border/50 px-5 py-3 flex items-center justify-between">
+      < div className="border-t border-border/50 px-5 py-3 flex items-center justify-between" >
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{t('extensionVersion')}</span>
           <span className="text-foreground">{extVersion ?? '...'}</span>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

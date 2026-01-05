@@ -284,12 +284,26 @@ html.dark .timeline-dot:not(.active):not(.starred)::after,
 }
 
 .timeline-track::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 3px;
+}
+
+.timeline-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-track::-webkit-scrollbar-thumb {
+  background-color: var(--timeline-dot-color);
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+.timeline-track::-webkit-scrollbar-thumb:hover {
+  background-color: var(--timeline-dot-active-color);
 }
 
 .timeline-track {
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--timeline-dot-color) transparent;
 }
 
 .timeline-left-slider {

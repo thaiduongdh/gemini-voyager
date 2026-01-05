@@ -129,6 +129,13 @@ function processMessages(): void {
                 contentContainer = element;
             }
 
+            // Start of duplicate check
+            if (contentContainer.querySelector(`.${TIMESTAMP_CLASS}`)) {
+                // If it exists but we need to update attribute on parent, do it (idempotent)
+                element.setAttribute(TIMESTAMP_ATTR, 'true');
+                return;
+            }
+
             // Create timestamp element
             const timestampEl = document.createElement('span');
             timestampEl.className = TIMESTAMP_CLASS;
