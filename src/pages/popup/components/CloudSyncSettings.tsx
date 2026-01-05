@@ -128,7 +128,7 @@ export function CloudSyncSettings() {
                 const storageResult = await chrome.storage.local.get(['gvFolderData', 'gvPromptItems']);
 
                 if (storageResult.gvFolderData) {
-                    folders = storageResult.gvFolderData;
+                    folders = storageResult.gvFolderData as any;
                     console.log('[CloudSyncSettings] Loaded folders from chrome.storage.local:', folders);
                 } else {
                     // Fallback to localStorage (only works when popup opened from same origin)
@@ -140,7 +140,7 @@ export function CloudSyncSettings() {
                 }
 
                 if (storageResult.gvPromptItems) {
-                    prompts = storageResult.gvPromptItems;
+                    prompts = storageResult.gvPromptItems as any;
                     console.log('[CloudSyncSettings] Loaded prompts from chrome.storage.local:', prompts.length, 'items');
                 } else {
                     const promptsStr = localStorage.getItem('gvPromptItems');

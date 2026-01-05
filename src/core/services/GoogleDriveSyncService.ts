@@ -205,9 +205,9 @@ export class GoogleDriveSyncService {
     private async loadCachedToken(): Promise<void> {
         try {
             const result = await chrome.storage.local.get(['gvAccessToken', 'gvTokenExpiry']);
-            if (result.gvAccessToken && result.gvTokenExpiry && result.gvTokenExpiry > Date.now()) {
-                this.accessToken = result.gvAccessToken;
-                this.tokenExpiry = result.gvTokenExpiry;
+            if (result.gvAccessToken && result.gvTokenExpiry && (result.gvTokenExpiry as number) > Date.now()) {
+                this.accessToken = result.gvAccessToken as string;
+                this.tokenExpiry = result.gvTokenExpiry as number;
                 console.log('[GoogleDriveSyncService] Loaded cached token');
             }
         } catch (error) {
@@ -394,8 +394,8 @@ export class GoogleDriveSyncService {
             const result = await chrome.storage.local.get(['gvSyncMode', 'gvLastSyncTime', 'gvSyncError']);
             this.state = {
                 mode: (result.gvSyncMode as SyncMode) || 'disabled',
-                lastSyncTime: result.gvLastSyncTime || null,
-                error: result.gvSyncError || null,
+                lastSyncTime: (result.gvLastSyncTime as number) || null,
+                error: (result.gvSyncError as string) || null,
                 isSyncing: false,
                 isAuthenticated: false,
             };
