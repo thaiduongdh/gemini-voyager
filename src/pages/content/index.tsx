@@ -3,18 +3,25 @@ import { startConversationStats } from './conversationStats/index';
 import { startDeepResearchExport } from './deepResearch/index';
 import { startEditInputWidthAdjuster } from './editInputWidth/index';
 import { startExportButton } from './export/index';
-import { startAIStudioFolderManager } from './folder/aistudio';
-import { startFolderManager } from './folder/index';
 import { initKaTeXConfig } from './katexConfig';
 import { startMessageTimestamps } from './messageTimestamps/index';
-import { startPromptManager } from './prompt/index';
 import { startSidebarWidthAdjuster } from './sidebarWidth';
-import { startTimeline } from './timeline/index';
 import { startWatermarkRemover } from './watermarkRemover/index';
-import initFloatingUI from './modules/sendToGemini/floating_ui';
 
+import { getFeatureFlags } from '@/core/features/flags';
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
 
 import { startFormulaCopy } from '@/features/formulaCopy';
+
+type FolderManagerModule = typeof import('./folder/index');
+type PromptManagerModule = typeof import('./prompt/index');
+type AIStudioFolderManagerModule = typeof import('./folder/aistudio');
+type TimelineModule = typeof import('./timeline/index');
+type FloatingUIModule = typeof import('./modules/sendToGemini/floating_ui');
+
+type StartFolderManager = FolderManagerModule['startFolderManager'];
+type StartPromptManager = PromptManagerModule['startPromptManager'];
 
 
 /**
@@ -34,49 +41,123 @@ const LIGHT_FEATURE_INIT_DELAY = 50;   // For lightweight features
 const BACKGROUND_TAB_MIN_DELAY = 3000; // Minimum delay for background tabs
 const BACKGROUND_TAB_MAX_DELAY = 8000; // Maximum delay for background tabs (3000 + 5000)
 
+type ContentSettings = {
+  customWebsites: string[];
+  folderEnabled: boolean;
+  promptTriggerEnabled: boolean;
+};
+
+const DEFAULT_CONTENT_SETTINGS: ContentSettings = {
+  customWebsites: [],
+  folderEnabled: true,
+  promptTriggerEnabled: true,
+};
+
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, '');
+}
+
+function isCustomWebsite(hostname: string, customWebsites: string[]): boolean {
+  if (!customWebsites.length) return false;
+
+  const currentHost = normalizeHostname(hostname);
+
+  console.log('[Gemini Voyager] Checking custom websites:', {
+    currentHost,
+    customWebsites,
+    hostname
+  });
+
+  const isCustom = customWebsites.some((website: string) => {
+    const normalizedWebsite = normalizeHostname(website);
+    const matches = currentHost === normalizedWebsite || currentHost.endsWith('.' + normalizedWebsite);
+    console.log('[Gemini Voyager] Comparing:', { currentHost, normalizedWebsite, matches });
+    return matches;
+  });
+
+  console.log('[Gemini Voyager] Is custom website:', isCustom);
+  return isCustom;
+}
+
+async function getContentSettings(): Promise<ContentSettings> {
+  try {
+    const result = await storageFacade.getSettings({
+      [StorageKeys.PROMPT_CUSTOM_WEBSITES]: [],
+      [StorageKeys.FOLDER_ENABLED]: true,
+      [StorageKeys.PROMPT_TRIGGER_ENABLED]: true,
+    });
+    const storedCustomWebsites = result?.[StorageKeys.PROMPT_CUSTOM_WEBSITES];
+    const customWebsites = Array.isArray(storedCustomWebsites) ? storedCustomWebsites : [];
+
+    return {
+      customWebsites,
+      folderEnabled: result?.[StorageKeys.FOLDER_ENABLED] !== false,
+      promptTriggerEnabled: result?.[StorageKeys.PROMPT_TRIGGER_ENABLED] !== false,
+    };
+  } catch (e) {
+    console.error('[Gemini Voyager] Error reading settings:', e);
+    return { ...DEFAULT_CONTENT_SETTINGS };
+  }
+}
+
+let timelineModulePromise: Promise<TimelineModule> | null = null;
+let folderManagerModulePromise: Promise<FolderManagerModule> | null = null;
+let promptManagerModulePromise: Promise<PromptManagerModule> | null = null;
+let aiStudioFolderManagerModulePromise: Promise<AIStudioFolderManagerModule> | null = null;
+let floatingUIModulePromise: Promise<FloatingUIModule> | null = null;
+
+const loadTimelineModule = () => {
+  if (!timelineModulePromise) {
+    timelineModulePromise = import('./timeline/index');
+  }
+  return timelineModulePromise;
+};
+
+const loadFolderManagerModule = () => {
+  if (!folderManagerModulePromise) {
+    folderManagerModulePromise = import('./folder/index');
+  }
+  return folderManagerModulePromise;
+};
+
+const loadPromptManagerModule = () => {
+  if (!promptManagerModulePromise) {
+    promptManagerModulePromise = import('./prompt/index');
+  }
+  return promptManagerModulePromise;
+};
+
+const loadAIStudioFolderManagerModule = () => {
+  if (!aiStudioFolderManagerModulePromise) {
+    aiStudioFolderManagerModulePromise = import('./folder/aistudio');
+  }
+  return aiStudioFolderManagerModulePromise;
+};
+
+const loadFloatingUIModule = () => {
+  if (!floatingUIModulePromise) {
+    floatingUIModulePromise = import('./modules/sendToGemini/floating_ui');
+  }
+  return floatingUIModulePromise;
+};
+
+const preloadModule = (label: string, loader: () => Promise<unknown>): void => {
+  loader().catch((err) => {
+    console.warn(`[Gemini Voyager] Failed to preload ${label} module`, err);
+  });
+};
+
 let initialized = false;
 let initializationTimer: number | null = null;
-let folderManagerInstance: Awaited<ReturnType<typeof startFolderManager>> | null = null;
-let promptManagerInstance: Awaited<ReturnType<typeof startPromptManager>> | null = null;
+let folderManagerInstance: Awaited<ReturnType<StartFolderManager>> | null = null;
+let promptManagerInstance: Awaited<ReturnType<StartPromptManager>> | null = null;
 let conversationStatsInstance: ReturnType<typeof startConversationStats> | null = null;
 let messageTimestampsInstance: ReturnType<typeof startMessageTimestamps> | null = null;
 
 /**
- * Check if current hostname matches any custom websites
- */
-async function isCustomWebsite(): Promise<boolean> {
-  try {
-    const result = await chrome.storage?.sync?.get({ gvPromptCustomWebsites: [] });
-    const customWebsites = Array.isArray(result?.gvPromptCustomWebsites) ? result.gvPromptCustomWebsites : [];
-
-    // Normalize current hostname
-    const currentHost = location.hostname.toLowerCase().replace(/^www\./, '');
-
-    console.log('[Gemini Voyager] Checking custom websites:', {
-      currentHost,
-      customWebsites,
-      hostname: location.hostname
-    });
-
-    const isCustom = customWebsites.some((website: string) => {
-      const normalizedWebsite = website.toLowerCase().replace(/^www\./, '');
-      const matches = currentHost === normalizedWebsite || currentHost.endsWith('.' + normalizedWebsite);
-      console.log('[Gemini Voyager] Comparing:', { currentHost, normalizedWebsite, matches });
-      return matches;
-    });
-
-    console.log('[Gemini Voyager] Is custom website:', isCustom);
-    return isCustom;
-  } catch (e) {
-    console.error('[Gemini Voyager] Error checking custom websites:', e);
-    return false;
-  }
-}
-
-/**
  * Initialize all features sequentially to reduce simultaneous load
  */
-async function initializeFeatures(): Promise<void> {
+async function initializeFeatures(initialSettings?: ContentSettings): Promise<void> {
   if (initialized) return;
   initialized = true;
 
@@ -85,31 +166,66 @@ async function initializeFeatures(): Promise<void> {
     // to further reduce simultaneous resource usage
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+    const hostname = normalizeHostname(location.hostname);
+    const isGemini = hostname === 'gemini.google.com';
+    const isAIStudio = hostname === 'aistudio.google.com' || hostname === 'aistudio.google.cn';
+    const isYouTube = hostname.includes('youtube.com');
+    const featureFlags = getFeatureFlags();
+    const settings = initialSettings ?? await getContentSettings();
+
     // Check if this is a custom website (only prompt manager should be enabled)
-    const isCustomSite = await isCustomWebsite();
+    const isCustomSite = isCustomWebsite(hostname, settings.customWebsites);
 
     if (isCustomSite) {
       // Only start prompt manager for custom websites
       console.log('[Gemini Voyager] Custom website detected, starting Prompt Manager only');
 
+      if (!featureFlags.promptManager || !settings.promptTriggerEnabled) {
+        console.log('[Gemini Voyager] Prompt Manager is disabled for custom websites');
+        return;
+      }
+
+      const { startPromptManager } = await loadPromptManagerModule();
       promptManagerInstance = await startPromptManager();
       return;
     }
 
     console.log('[Gemini Voyager] Not a custom website, checking for Gemini/AI Studio');
 
+    const shouldLoadTimeline = featureFlags.timeline && isGemini;
+    const shouldLoadFolders = featureFlags.folders && settings.folderEnabled && isGemini;
+    const shouldLoadPromptManager =
+      featureFlags.promptManager && settings.promptTriggerEnabled && (isGemini || isAIStudio);
+    const shouldLoadAIStudioFolderManager = featureFlags.folders && settings.folderEnabled && isAIStudio;
+    const shouldLoadFloatingUI = featureFlags.sendToGemini && isYouTube;
+
+    if (!featureFlags.lazyLoadContent) {
+      if (shouldLoadTimeline) preloadModule('timeline', loadTimelineModule);
+      if (shouldLoadFolders) preloadModule('folder manager', loadFolderManagerModule);
+      if (shouldLoadPromptManager) preloadModule('prompt manager', loadPromptManagerModule);
+      if (shouldLoadAIStudioFolderManager) preloadModule('AI Studio folders', loadAIStudioFolderManagerModule);
+      if (shouldLoadFloatingUI) preloadModule('Send to Gemini UI', loadFloatingUIModule);
+    }
+
     // Init Floating UI (Send to Gemini) on YouTube
-    if (location.hostname.includes('youtube.com')) {
+    if (shouldLoadFloatingUI) {
+      const { default: initFloatingUI } = await loadFloatingUIModule();
       initFloatingUI();
     }
 
-    if (location.hostname === 'gemini.google.com') {
+    if (isGemini) {
       // Timeline is most resource-intensive, start it first
-      startTimeline();
-      await delay(HEAVY_FEATURE_INIT_DELAY);
+      if (shouldLoadTimeline) {
+        const { startTimeline } = await loadTimelineModule();
+        startTimeline();
+        await delay(HEAVY_FEATURE_INIT_DELAY);
+      }
 
-      folderManagerInstance = await startFolderManager();
-      await delay(HEAVY_FEATURE_INIT_DELAY);
+      if (shouldLoadFolders) {
+        const { startFolderManager } = await loadFolderManagerModule();
+        folderManagerInstance = await startFolderManager();
+        await delay(HEAVY_FEATURE_INIT_DELAY);
+      }
 
       startChatWidthAdjuster();
       await delay(LIGHT_FEATURE_INIT_DELAY);
@@ -140,17 +256,15 @@ async function initializeFeatures(): Promise<void> {
       await delay(LIGHT_FEATURE_INIT_DELAY);
     }
 
-    if (
-      location.hostname === 'gemini.google.com' ||
-      location.hostname === 'aistudio.google.com' ||
-      location.hostname === 'aistudio.google.cn'
-    ) {
+    if (shouldLoadPromptManager) {
+      const { startPromptManager } = await loadPromptManagerModule();
       promptManagerInstance = await startPromptManager();
       await delay(HEAVY_FEATURE_INIT_DELAY);
     }
 
-    if (location.hostname === 'aistudio.google.com' || location.hostname === 'aistudio.google.cn') {
-      startAIStudioFolderManager();
+    if (shouldLoadAIStudioFolderManager) {
+      const { startAIStudioFolderManager } = await loadAIStudioFolderManagerModule();
+      await startAIStudioFolderManager();
       await delay(HEAVY_FEATURE_INIT_DELAY);
     }
 
@@ -197,42 +311,33 @@ function handleVisibilityChange(): void {
 }
 
 // Main initialization logic
-(function () {
+void (async () => {
   try {
     // Quick check: only run on supported websites
-    const hostname = location.hostname.toLowerCase();
+    const hostname = normalizeHostname(location.hostname);
+    const isYouTube = hostname.includes('youtube.com');
     const isSupportedSite =
-      hostname.includes('gemini.google.com') ||
-      hostname.includes('aistudio.google.com') ||
-      hostname.includes('aistudio.google.cn') ||
-      hostname.includes('youtube.com'); // Added YouTube support
+      hostname === 'gemini.google.com' ||
+      hostname === 'aistudio.google.com' ||
+      hostname === 'aistudio.google.cn' ||
+      isYouTube; // Added YouTube support
 
     // Initialize KaTeX configuration early to suppress Unicode warnings
     // This must run before any formulas are rendered on the page
-    if (isSupportedSite && !hostname.includes('youtube.com')) {
+    if (isSupportedSite && !isYouTube) {
       initKaTeXConfig();
     }
 
     // If not a known site, check if it's a custom website (async)
     if (!isSupportedSite) {
-      // For unknown sites, check storage asynchronously
-      chrome.storage?.sync?.get({ gvPromptCustomWebsites: [] }, (result) => {
-        const customWebsites = Array.isArray(result?.gvPromptCustomWebsites) ? result.gvPromptCustomWebsites : [];
-        const currentHost = hostname.replace(/^www\./, '');
-
-        const isCustomSite = customWebsites.some((website: string) => {
-          const normalizedWebsite = website.toLowerCase().replace(/^www\./, '');
-          return currentHost === normalizedWebsite || currentHost.endsWith('.' + normalizedWebsite);
-        });
-
-        if (isCustomSite) {
-          console.log('[Gemini Voyager] Custom website detected:', hostname);
-          initializeFeatures();
-        } else {
-          // Not a supported site, exit early
-          console.log('[Gemini Voyager] Not a supported website, skipping initialization');
-        }
-      });
+      const settings = await getContentSettings();
+      if (isCustomWebsite(hostname, settings.customWebsites)) {
+        console.log('[Gemini Voyager] Custom website detected:', hostname);
+        void initializeFeatures(settings);
+      } else {
+        // Not a supported site, exit early
+        console.log('[Gemini Voyager] Not a supported website, skipping initialization');
+      }
       return;
     }
 
@@ -240,12 +345,12 @@ function handleVisibilityChange(): void {
 
     if (delay === 0) {
       // Immediate initialization for foreground tabs
-      initializeFeatures();
+      void initializeFeatures();
     } else {
       // Delayed initialization for background tabs
       initializationTimer = window.setTimeout(() => {
         initializationTimer = null;
-        initializeFeatures();
+        void initializeFeatures();
       }, delay);
     }
 

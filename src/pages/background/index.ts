@@ -1,6 +1,7 @@
 /* Background service worker - handles cross-origin image fetch, popup opening, and sync */
 
 import { googleDriveSyncService } from '@/core/services/GoogleDriveSyncService';
+import { storageFacade } from '@/core/services/StorageFacade';
 import { StorageKeys } from '@/core/types/common';
 import type { FolderData } from '@/core/types/folder';
 import type { SyncMode, SyncData, PromptItem } from '@/core/types/sync';
@@ -28,7 +29,7 @@ class StarredMessagesManager {
 
   private async getFromStorage(): Promise<StarredMessagesData> {
     try {
-      const result = await chrome.storage.local.get([StorageKeys.TIMELINE_STARRED_MESSAGES]);
+      const result = await storageFacade.getDataMap([StorageKeys.TIMELINE_STARRED_MESSAGES]);
       return (result[StorageKeys.TIMELINE_STARRED_MESSAGES] as StarredMessagesData) || { messages: {} };
     } catch (error) {
       console.error('[Background] Failed to get starred messages:', error);
@@ -37,7 +38,7 @@ class StarredMessagesManager {
   }
 
   private async saveToStorage(data: StarredMessagesData): Promise<void> {
-    await chrome.storage.local.set({ [StorageKeys.TIMELINE_STARRED_MESSAGES]: data });
+    await storageFacade.setData(StorageKeys.TIMELINE_STARRED_MESSAGES, data);
   }
 
   async addStarredMessage(message: StarredMessage): Promise<boolean> {
@@ -174,9 +175,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             if (data) {
               const folderData = data.folders?.data || { folders: [], folderContents: {} };
               const promptItems = data.prompts?.items || [];
-              await chrome.storage.local.set({
-                gvFolderData: folderData,
-                gvPromptItems: promptItems,
+              await storageFacade.setDataMap({
+                [StorageKeys.FOLDER_DATA]: folderData,
+                [StorageKeys.PROMPT_ITEMS]: promptItems,
               });
               console.log('[Background] Downloaded data saved to storage, folders:', folderData.folders?.length || 0, 'prompts:', promptItems.length);
             }

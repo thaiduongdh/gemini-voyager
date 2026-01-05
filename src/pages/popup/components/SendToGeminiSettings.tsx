@@ -4,8 +4,11 @@ import { Card, CardContent, CardTitle } from '../../../components/ui/card';
 import { Label } from '../../../components/ui/label';
 import { Switch } from '../../../components/ui/switch';
 import { Button } from '../../../components/ui/button';
-import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../../../shared/modules/sendToGemini/storage';
-import type { GeminiModel, TargetTab, QueueItem } from '../../../shared/modules/sendToGemini/types';
+import { STORAGE_KEYS } from '../../../shared/modules/sendToGemini/storage';
+import type { GeminiModel, TargetTab } from '../../../shared/modules/sendToGemini/types';
+
+import { storageFacade } from '@/core/services/StorageFacade';
+import type { StorageKey } from '@/core/types/common';
 
 interface SendToGeminiSettingsProps {
     t: (key: string) => string;
@@ -22,7 +25,7 @@ export function SendToGeminiSettings({ t }: SendToGeminiSettingsProps) {
 
     // Load initial values
     useEffect(() => {
-        chrome.storage.local.get(
+        void storageFacade.getDataMap(
             {
                 [STORAGE_KEYS.enabled]: true,
                 [STORAGE_KEYS.advancedMenu]: false,
@@ -41,24 +44,26 @@ export function SendToGeminiSettings({ t }: SendToGeminiSettingsProps) {
         );
 
         // Listen for queue changes
-        const listener = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-            if (area === 'local' && changes[STORAGE_KEYS.queue]) {
-                const queue = Array.isArray(changes[STORAGE_KEYS.queue].newValue)
-                    ? (changes[STORAGE_KEYS.queue].newValue as unknown[])
+        const unsubscribe = storageFacade.subscribe(
+            STORAGE_KEYS.queue,
+            (change, areaName) => {
+                if (areaName !== 'local') return;
+                const queue = Array.isArray(change.newValue)
+                    ? (change.newValue as unknown[])
                     : [];
                 setQueueCount(queue.length);
-            }
-        };
-        chrome.storage.onChanged.addListener(listener);
-        return () => chrome.storage.onChanged.removeListener(listener);
+            },
+            { area: 'local' }
+        );
+        return () => unsubscribe();
     }, []);
 
-    const updateSetting = useCallback(<T,>(key: string, value: T) => {
-        chrome.storage.local.set({ [key]: value });
+    const updateSetting = useCallback(<T,>(key: StorageKey, value: T) => {
+        void storageFacade.setData(key, value);
     }, []);
 
     const handleClearQueue = useCallback(() => {
-        chrome.storage.local.set({ [STORAGE_KEYS.queue]: [] });
+        void storageFacade.setData(STORAGE_KEYS.queue, []);
     }, []);
 
     return (

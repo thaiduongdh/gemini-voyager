@@ -5,6 +5,8 @@ import type { StarredMessage, StarredMessagesData } from './starredTypes';
 import { DotElement } from './types';
 
 import { keyboardShortcutService } from '@/core/services/KeyboardShortcutService';
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
 import { StorageKeys } from '@/core/types/common';
 import type { ShortcutAction } from '@/core/types/keyboardShortcut';
 
@@ -40,7 +42,7 @@ export class TimelineManager {
   } = { timelineBar: null, tooltip: null };
   private isScrolling = false;
 
-  private mutationObserver: MutationObserver | null = null;
+  private mutationObserver: (() => void) | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
   private visibleUserTurns: Set<Element> = new Set();
@@ -89,9 +91,7 @@ export class TimelineManager {
   private onVisualViewportResize: (() => void) | null = null;
   private zeroTurnsTimer: number | null = null;
   private onStorage: ((e: StorageEvent) => void) | null = null;
-  private onChromeStorageChanged:
-    | ((changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void)
-    | null = null;
+  private storageUnsubscribers: Array<() => void> = [];
   private starred: Set<string> = new Set();
   private markerMap: Map<
     string,
@@ -149,73 +149,93 @@ export class TimelineManager {
     // Initialize keyboard shortcuts
     await this.initKeyboardShortcuts();
     try {
-      // prefer chrome.storage if available to sync with popup
-      if ((window as any).chrome?.storage?.sync) {
-        (window as any).chrome.storage.sync.get(
-          {
-            geminiTimelineScrollMode: 'flow',
-            geminiTimelineHideContainer: false,
-            geminiTimelineDraggable: false,
-            geminiTimelinePosition: null,
-          },
-          (res: any) => {
-            const m = res?.geminiTimelineScrollMode;
-            if (m === 'flow' || m === 'jump') this.scrollMode = m;
-            this.hideContainer = !!res?.geminiTimelineHideContainer;
-            this.applyContainerVisibility();
-            this.toggleDraggable(!!res?.geminiTimelineDraggable);
+      if (storageFacade.isAvailable('sync')) {
+        const res = await storageFacade.getSettings({
+          [StorageKeys.TIMELINE_SCROLL_MODE]: 'flow',
+          [StorageKeys.TIMELINE_HIDE_CONTAINER]: false,
+          [StorageKeys.TIMELINE_DRAGGABLE]: false,
+          [StorageKeys.TIMELINE_POSITION]: null,
+        });
+        const m = res?.[StorageKeys.TIMELINE_SCROLL_MODE];
+        if (m === 'flow' || m === 'jump') this.scrollMode = m;
+        this.hideContainer = !!res?.[StorageKeys.TIMELINE_HIDE_CONTAINER];
+        this.applyContainerVisibility();
+        this.toggleDraggable(!!res?.[StorageKeys.TIMELINE_DRAGGABLE]);
 
-            // Load position with auto-migration from v1 to v2
-            const position = res?.geminiTimelinePosition;
-            if (position) {
-              const viewportWidth = window.innerWidth;
-              const viewportHeight = window.innerHeight;
+        // Load position with auto-migration from v1 to v2
+        const position = res?.[StorageKeys.TIMELINE_POSITION];
+        if (position) {
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
 
-              // v2 format: use percentage (responsive)
-              if (position.version === 2 && position.topPercent !== undefined && position.leftPercent !== undefined) {
-                const top = (position.topPercent / 100) * viewportHeight;
-                const left = (position.leftPercent / 100) * viewportWidth;
-                this.applyPosition(top, left);
-              }
-              // v1 format: migrate to v2 (auto-upgrade)
-              else if (position.top !== undefined && position.left !== undefined) {
-                // Apply old position first
-                this.applyPosition(position.top, position.left);
-
-                // Migrate to v2 format (percentage-based)
-                const migratedPosition = {
-                  version: 2,
-                  topPercent: (position.top / viewportHeight) * 100,
-                  leftPercent: (position.left / viewportWidth) * 100,
-                };
-                chrome.storage.sync.set({ geminiTimelinePosition: migratedPosition });
-              }
-            }
+          // v2 format: use percentage (responsive)
+          if (position.version === 2 && position.topPercent !== undefined && position.leftPercent !== undefined) {
+            const top = (position.topPercent / 100) * viewportHeight;
+            const left = (position.leftPercent / 100) * viewportWidth;
+            this.applyPosition(top, left);
           }
+          // v1 format: migrate to v2 (auto-upgrade)
+          else if (position.top !== undefined && position.left !== undefined) {
+            // Apply old position first
+            this.applyPosition(position.top, position.left);
+
+            // Migrate to v2 format (percentage-based)
+            const migratedPosition = {
+              version: 2,
+              topPercent: (position.top / viewportHeight) * 100,
+              leftPercent: (position.left / viewportWidth) * 100,
+            };
+            await storageFacade.setSetting(StorageKeys.TIMELINE_POSITION, migratedPosition);
+          }
+        }
+
+        this.storageUnsubscribers.push(
+          storageFacade.subscribe(
+            StorageKeys.TIMELINE_SCROLL_MODE,
+            (change, area) => {
+              if (area !== 'sync') return;
+              const n = change.newValue;
+              if (n === 'flow' || n === 'jump') this.scrollMode = n as 'flow' | 'jump';
+            },
+            { area: 'sync' }
+          )
         );
-        // listen for changes from popup and update mode live
-        try {
-          (window as any).chrome.storage.onChanged.addListener((changes: any, area: string) => {
-            if (area !== 'sync') return;
-            if (changes?.geminiTimelineScrollMode) {
-              const n = changes.geminiTimelineScrollMode.newValue;
-              if (n === 'flow' || n === 'jump') this.scrollMode = n;
-            }
-            if (changes?.geminiTimelineHideContainer) {
-              this.hideContainer = !!changes.geminiTimelineHideContainer.newValue;
+        this.storageUnsubscribers.push(
+          storageFacade.subscribe(
+            StorageKeys.TIMELINE_HIDE_CONTAINER,
+            (change, area) => {
+              if (area !== 'sync') return;
+              this.hideContainer = !!change.newValue;
               this.applyContainerVisibility();
-            }
-            if (changes?.geminiTimelineDraggable) {
-              this.toggleDraggable(!!changes.geminiTimelineDraggable.newValue);
-            }
-            if (changes?.geminiTimelinePosition && !changes.geminiTimelinePosition.newValue) {
-              this.ui.timelineBar!.style.top = '';
-              this.ui.timelineBar!.style.left = '';
-            }
-          });
-        } catch {}
+            },
+            { area: 'sync' }
+          )
+        );
+        this.storageUnsubscribers.push(
+          storageFacade.subscribe(
+            StorageKeys.TIMELINE_DRAGGABLE,
+            (change, area) => {
+              if (area !== 'sync') return;
+              this.toggleDraggable(!!change.newValue);
+            },
+            { area: 'sync' }
+          )
+        );
+        this.storageUnsubscribers.push(
+          storageFacade.subscribe(
+            StorageKeys.TIMELINE_POSITION,
+            (change, area) => {
+              if (area !== 'sync') return;
+              if (!change.newValue && this.ui.timelineBar) {
+                this.ui.timelineBar.style.top = '';
+                this.ui.timelineBar.style.left = '';
+              }
+            },
+            { area: 'sync' }
+          )
+        );
       } else {
-        const saved = localStorage.getItem('geminiTimelineScrollMode');
+        const saved = localStorage.getItem(StorageKeys.TIMELINE_SCROLL_MODE);
         if (saved === 'flow' || saved === 'jump') this.scrollMode = saved;
       }
     } catch {}
@@ -405,22 +425,25 @@ export class TimelineManager {
     return new Promise((resolve) => {
       const found = document.querySelector(selector);
       if (found) return resolve(found);
-      const obs = new MutationObserver(() => {
-        const el = document.querySelector(selector);
-        if (el) {
-          try {
-            obs.disconnect();
-          } catch {}
+      let timeoutId: number | null = null;
+      const unsubscribe = sharedObserverPool.register(
+        selector,
+        () => {
+          const el = document.querySelector(selector);
+          if (!el) return;
+          unsubscribe();
+          if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
           resolve(el);
-        }
-      });
-      try {
-        obs.observe(document.body, { childList: true, subtree: true });
-      } catch {}
+        },
+        { childList: true, subtree: true }
+      );
       if (timeoutMs > 0) {
-        setTimeout(() => {
+        timeoutId = window.setTimeout(() => {
           try {
-            obs.disconnect();
+            unsubscribe();
           } catch {}
           resolve(null);
         }, timeoutMs);
@@ -875,12 +898,19 @@ export class TimelineManager {
   };
 
   private setupObservers(): void {
-    this.mutationObserver = new MutationObserver(() => {
-      this.debouncedRecalc();
-      this.updateIntersectionObserverTargets();
-    });
-    if (this.conversationContainer)
-      this.mutationObserver.observe(this.conversationContainer, { childList: true, subtree: true });
+    if (this.mutationObserver) {
+      this.mutationObserver();
+      this.mutationObserver = null;
+    }
+    this.mutationObserver = sharedObserverPool.register(
+      this.userTurnSelector || 'main',
+      () => {
+        this.debouncedRecalc();
+        this.updateIntersectionObserverTargets();
+      },
+      { childList: true, subtree: true },
+      () => this.conversationContainer
+    );
 
     this.resizeObserver = new ResizeObserver(() => {
       this.updateTimelineGeometry();
@@ -1090,15 +1120,16 @@ export class TimelineManager {
     };
     window.addEventListener('storage', this.onStorage);
 
-    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-      this.onChromeStorageChanged = (changes, areaName) => {
-        if (areaName !== 'local') return;
-        const starredChange = changes[StorageKeys.TIMELINE_STARRED_MESSAGES];
-        if (!starredChange) return;
-        this.applySharedStarredData(starredChange.newValue as StarredMessagesData | null);
-      };
-      chrome.storage.onChanged.addListener(this.onChromeStorageChanged);
-    }
+    this.storageUnsubscribers.push(
+      storageFacade.subscribe(
+        StorageKeys.TIMELINE_STARRED_MESSAGES,
+        (change, areaName) => {
+          if (areaName !== 'local') return;
+          this.applySharedStarredData(change.newValue as StarredMessagesData | null);
+        },
+        { area: 'local' }
+      )
+    );
 
     // Subscribe to EventBus for cross-component starred state synchronization
     this.eventBusUnsubscribers.push(
@@ -1764,7 +1795,7 @@ export class TimelineManager {
       leftPercent: (rect.left / viewportWidth) * 100,
     };
 
-    chrome.storage.sync.set({ geminiTimelinePosition: position });
+    void storageFacade.setSetting(StorageKeys.TIMELINE_POSITION, position).catch(() => {});
   }
 
   /**
@@ -1793,8 +1824,8 @@ export class TimelineManager {
   private reapplyPosition(): void {
     if (!this.ui.timelineBar) return;
 
-    chrome.storage.sync.get(['geminiTimelinePosition'], (res: any) => {
-      const position = res?.geminiTimelinePosition;
+    storageFacade.getSettings([StorageKeys.TIMELINE_POSITION], (res) => {
+      const position = res?.[StorageKeys.TIMELINE_POSITION];
       if (!position) return;
 
       const viewportWidth = window.innerWidth;
@@ -2130,8 +2161,9 @@ export class TimelineManager {
       if (this.onBarPointerUp) window.removeEventListener('pointerup', this.onBarPointerUp);
     } catch {}
     try {
-      this.mutationObserver?.disconnect();
+      this.mutationObserver?.();
     } catch {}
+    this.mutationObserver = null;
     try {
       this.resizeObserver?.disconnect();
     } catch {}
@@ -2147,12 +2179,12 @@ export class TimelineManager {
     try {
       window.removeEventListener('storage', this.onStorage!);
     } catch {}
-    if (this.onChromeStorageChanged && typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    this.storageUnsubscribers.forEach((unsubscribe) => {
       try {
-        chrome.storage.onChanged.removeListener(this.onChromeStorageChanged);
+        unsubscribe();
       } catch {}
-      this.onChromeStorageChanged = null;
-    }
+    });
+    this.storageUnsubscribers = [];
     try {
       this.ui.timelineBar?.removeEventListener('pointerdown', this.onPointerDown!);
     } catch {}

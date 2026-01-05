@@ -1,4 +1,6 @@
 /* Adjust Gemini sidebar (<bard-sidenav>) width: through CSS variable --bard-sidenav-open-width */
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
 const STYLE_ID = 'gv-sidebar-width-style';
 const DEFAULT_PERCENT = 26;
 const MIN_PERCENT = 15;
@@ -132,6 +134,7 @@ function removeStyles(): void {
 export function startSidebarWidthAdjuster(): void {
   let currentWidthValue = DEFAULT_PX;
   let topBarObserver: ResizeObserver | null = null;
+  let unsubscribeStorage: (() => void) | null = null;
 
   const measureTopBarWidth = () => {
     try {
@@ -150,15 +153,15 @@ export function startSidebarWidthAdjuster(): void {
 
   // 1) Read initial width
   try {
-    chrome.storage?.sync?.get({ geminiSidebarWidth: DEFAULT_PX }, (res) => {
-      const w = Number(res?.geminiSidebarWidth);
+    storageFacade.getSettings({ [StorageKeys.SIDEBAR_WIDTH]: DEFAULT_PX }, (res) => {
+      const w = Number(res?.[StorageKeys.SIDEBAR_WIDTH]);
       const { normalized } = normalizeWidth(w);
       currentWidthValue = normalized;
       applyWidth(currentWidthValue);
 
       if (Number.isFinite(w) && w !== normalized) {
         try {
-          chrome.storage?.sync?.set({ geminiSidebarWidth: normalized });
+          void storageFacade.setSetting(StorageKeys.SIDEBAR_WIDTH, normalized).catch(() => {});
         } catch (err) {
           console.warn('[Gemini Voyager] Failed to migrate sidebar width to %:', err);
         }
@@ -172,24 +175,25 @@ export function startSidebarWidthAdjuster(): void {
 
   // 2) Respond to storage changes (from Popup slider adjustment)
   try {
-    chrome.storage?.onChanged?.addListener((changes, area) => {
-      if (area === 'sync' && changes.geminiSidebarWidth) {
-        const w = Number(changes.geminiSidebarWidth.newValue);
+    unsubscribeStorage = storageFacade.subscribe(
+      StorageKeys.SIDEBAR_WIDTH,
+      (change, area) => {
+        if (area !== 'sync') return;
+        const w = Number(change.newValue);
         if (Number.isFinite(w)) {
           const { normalized } = normalizeWidth(w);
           currentWidthValue = normalized;
           applyWidth(currentWidthValue);
 
           if (normalized !== w) {
-            try {
-              chrome.storage?.sync?.set({ geminiSidebarWidth: normalized });
-            } catch (err) {
+            void storageFacade.setSetting(StorageKeys.SIDEBAR_WIDTH, normalized).catch((err) => {
               console.warn('[Gemini Voyager] Failed to migrate sidebar width to % on change:', err);
-            }
+            });
           }
         }
-      }
-    });
+      },
+      { area: 'sync' }
+    );
   } catch (e) {
     console.error('[Gemini Voyager] Failed to add storage listener for sidebar width:', e);
   }
@@ -230,6 +234,12 @@ export function startSidebarWidthAdjuster(): void {
   window.addEventListener('beforeunload', () => {
     // observer.disconnect();
     removeStyles();
+    if (unsubscribeStorage) {
+      try {
+        unsubscribeStorage();
+      } catch { }
+      unsubscribeStorage = null;
+    }
     if (topBarObserver) {
       try {
         topBarObserver.disconnect();

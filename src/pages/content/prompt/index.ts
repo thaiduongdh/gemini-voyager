@@ -13,7 +13,7 @@ import 'katex/dist/katex.min.css';
 import { createFolderStorageAdapter } from '../folder/storage/FolderStorageAdapter';
 
 import { logger } from '@/core/services/LoggerService';
-import { promptStorageService } from '@/core/services/StorageService';
+import { storageFacade } from '@/core/services/StorageFacade';
 import { StorageKeys, type StorageKey } from '@/core/types/common';
 import { migrateFromLocalStorage } from '@/core/utils/storageMigration';
 import { compareVersions } from '@/core/utils/version';
@@ -43,7 +43,7 @@ const ID = {
   panel: 'gv-pm-panel',
 } as const;
 
-const LATEST_VERSION_CACHE_KEY = 'gvLatestVersionCache';
+const LATEST_VERSION_CACHE_KEY = StorageKeys.LATEST_VERSION_CACHE;
 const LATEST_VERSION_MAX_AGE = 1000 * 60 * 60 * 6; // 6 hours
 
 function getRuntimeUrl(path: string): string {
@@ -74,7 +74,7 @@ function createI18n() {
           // Extension context invalidated, skip
           return;
         }
-        await browser.storage.sync.set({ language: lang });
+        await storageFacade.setSetting(StorageKeys.LANGUAGE, lang);
       } catch (e) {
         // Silently ignore extension context errors
         if (e instanceof Error && e.message.includes('Extension context invalidated')) {
@@ -99,10 +99,18 @@ function uid(): string {
 }
 
 /**
- * Storage adapter - uses chrome.storage.local for cross-domain data sharing
- * Falls back to localStorage if chrome.storage is unavailable
+ * Storage adapter - uses StorageFacade (chrome.storage.local) for cross-domain data sharing.
  */
 const pmLogger = logger.createChild('PromptManager');
+const promptStorageAdapter = {
+  get: async <T>(key: StorageKey): Promise<T | undefined> => {
+    const result = await storageFacade.getDataMap([key]);
+    return result[key] as T | undefined;
+  },
+  set: async <T>(key: StorageKey, value: T): Promise<void> => {
+    await storageFacade.setData(key, value);
+  },
+};
 
 const normalizeVersionString = (version?: string | null): string | null => {
   if (!version) return null;
@@ -118,20 +126,25 @@ const toReleaseTag = (version?: string | null): string | null => {
 };
 
 async function readStorage<T>(key: StorageKey, fallback: T): Promise<T> {
-  const result = await promptStorageService.get<T>(key);
-  if (result.success) {
-    return result.data;
+  try {
+    const result = await promptStorageAdapter.get<T>(key);
+    if (result !== undefined) {
+      return result;
+    }
+    pmLogger.debug(`Key not found: ${key}, using fallback`);
+  } catch (error) {
+    pmLogger.error(`Failed to read key: ${key}`, { error });
   }
-  pmLogger.debug(`Key not found: ${key}, using fallback`);
   return fallback;
 }
 
 async function writeStorage<T>(key: StorageKey, value: T): Promise<void> {
-  const result = await promptStorageService.set(key, value);
-  if (!result.success) {
+  try {
+    await promptStorageAdapter.set(key, value);
+  } catch (error) {
     pmLogger.error(`Failed to write key: ${key}`, {
-      error: result.error?.message || 'Unknown error',
-      errorDetails: result.error
+      error: error instanceof Error ? error.message : 'Unknown error',
+      errorDetails: error
     });
   }
 }
@@ -141,8 +154,8 @@ async function getLatestVersionCached(): Promise<string | null> {
     if (!browser.runtime?.id) return null;
 
     const now = Date.now();
-    const cache = await browser.storage.local.get(LATEST_VERSION_CACHE_KEY);
-    const cached = cache?.[LATEST_VERSION_CACHE_KEY] as { version?: string; fetchedAt?: number } | undefined;
+    const cache = await storageFacade.getDataMap([StorageKeys.LATEST_VERSION_CACHE]);
+    const cached = cache?.[StorageKeys.LATEST_VERSION_CACHE] as { version?: string; fetchedAt?: number } | undefined;
     if (cached && cached.version && cached.fetchedAt && now - cached.fetchedAt < LATEST_VERSION_MAX_AGE) {
       return cached.version;
     }
@@ -161,7 +174,9 @@ async function getLatestVersionCached(): Promise<string | null> {
         : (typeof data.name === 'string' ? data.name : null);
 
     if (candidate) {
-      await browser.storage.local.set({ [LATEST_VERSION_CACHE_KEY]: { version: candidate, fetchedAt: now } });
+      await storageFacade.setDataMap({
+        [StorageKeys.LATEST_VERSION_CACHE]: { version: candidate, fetchedAt: now },
+      });
       return candidate;
     }
   } catch (error) {
@@ -243,6 +258,9 @@ function computeAnchoredPosition(trigger: HTMLElement, panel: HTMLElement): { to
 
 export async function startPromptManager(): Promise<{ destroy: () => void }> {
   let marked: any;
+  let unsubscribeTriggerSetting: (() => void) | null = null;
+  let unsubscribeLanguage: (() => void) | null = null;
+  let unsubscribePromptItems: (() => void) | null = null;
   try {
     // Monkey patch console.warn to suppress KaTeX quirks mode warning in content script
     const originalWarn = console.warn;
@@ -266,7 +284,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
         STORAGE_KEYS.triggerPos,
       ];
 
-      const migrationResult = await migrateFromLocalStorage(keysToMigrate, promptStorageService, {
+      const migrationResult = await migrateFromLocalStorage(keysToMigrate, promptStorageAdapter, {
         deleteAfterMigration: false, // Keep localStorage as backup
         skipExisting: true, // Skip if already migrated
       });
@@ -307,8 +325,8 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     // Check if prompt trigger is enabled (default: true)
     let triggerEnabled = true;
     try {
-      const result = await chrome.storage?.sync?.get({ gvPromptTriggerEnabled: true });
-      triggerEnabled = result?.gvPromptTriggerEnabled !== false;
+      const result = await storageFacade.getSettings({ [StorageKeys.PROMPT_TRIGGER_ENABLED]: true });
+      triggerEnabled = result?.[StorageKeys.PROMPT_TRIGGER_ENABLED] !== false;
     } catch {
       // Fallback to enabled if storage check fails
     }
@@ -414,9 +432,11 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     document.body.appendChild(panel);
 
     // Listen for storage changes to toggle visibility dynamically
-    const storageListener = (changes: any, area: string) => {
-      if (area === 'sync' && 'gvPromptTriggerEnabled' in changes) {
-        const enabled = changes.gvPromptTriggerEnabled.newValue !== false;
+    unsubscribeTriggerSetting = storageFacade.subscribe(
+      StorageKeys.PROMPT_TRIGGER_ENABLED,
+      (change, area) => {
+        if (area !== 'sync') return;
+        const enabled = change.newValue !== false;
         if (enabled) {
           trigger.classList.remove('gv-hidden');
           // Re-constrain position when showing
@@ -425,9 +445,9 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
           trigger.classList.add('gv-hidden');
           if (open) closePanel();
         }
-      }
-    };
-    chrome.storage.onChanged.addListener(storageListener);
+      },
+      { area: 'sync' }
+    );
 
     // Build panel DOM
     const header = createEl('div', 'gv-pm-header');
@@ -993,32 +1013,29 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     // Listen to external language changes (popup/options)
     // Note: The centralized i18n system already handles storage changes,
     // we just need to update the UI when language changes
-    const storageChangeHandler = (changes: any, area: string) => {
-      // Handle language changes from sync storage
-      if (area === 'sync' && changes?.language?.newValue) {
-        // Language handling removed
-        // const next = changes.language.newValue;
-        // try {
-        //   langSel.value = next.startsWith('zh') ? 'zh' : 'en';
-        // } catch { }
+    unsubscribeLanguage = storageFacade.subscribe(
+      StorageKeys.LANGUAGE,
+      (change, area) => {
+        if (area !== 'sync' || !change.newValue) return;
         refreshUITexts();
-      }
-      // Handle prompt data changes from cloud sync (local storage)
-      if (area === 'local' && changes?.gvPromptItems) {
-        pmLogger.info('Prompt data changed in chrome.storage.local, reloading...');
-        const newItems = changes.gvPromptItems.newValue;
+      },
+      { area: 'sync' }
+    );
+    unsubscribePromptItems = storageFacade.subscribe(
+      StorageKeys.PROMPT_ITEMS,
+      (change, area) => {
+        if (area !== 'local') return;
+        pmLogger.info('Prompt data changed in storage, reloading...');
+        const newItems = change.newValue;
         if (Array.isArray(newItems)) {
           items = newItems;
           renderTags();
           renderList();
           setNotice(i18n.t('syncSuccess') || 'Synced', 'ok');
         }
-      }
-    };
-
-    try {
-      browser.storage.onChanged.addListener(storageChangeHandler);
-    } catch { }
+      },
+      { area: 'local' }
+    );
 
     addBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
@@ -1139,7 +1156,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
 
         // Read folders (Safari-compatible: uses storage adapter)
         const folderStorage = createFolderStorageAdapter();
-        const folderData = await folderStorage.loadData('gvFolderData') || { folders: [], folderContents: {} };
+        const folderData = await folderStorage.loadData(StorageKeys.FOLDER_DATA) || { folders: [], folderContents: {} };
 
         // Create folder export payload with correct format
         const folderPayload = {
@@ -1304,12 +1321,15 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
           window.removeEventListener('pointerup', endDrag);
           window.removeEventListener('pointerup', onTriggerDragEnd);
 
-          chrome.storage?.onChanged?.removeListener(storageChangeHandler);
-
           trigger.remove();
           panel.remove();
           document.querySelectorAll('.gv-pm-confirm').forEach(el => el.remove());
-          chrome.storage.onChanged.removeListener(storageListener);
+          unsubscribeTriggerSetting?.();
+          unsubscribeTriggerSetting = null;
+          unsubscribeLanguage?.();
+          unsubscribeLanguage = null;
+          unsubscribePromptItems?.();
+          unsubscribePromptItems = null;
         } catch (e) {
           console.error('[PromptManager] Destroy error:', e);
         }

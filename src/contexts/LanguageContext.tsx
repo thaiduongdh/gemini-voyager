@@ -2,6 +2,9 @@ import enMessages from '@locales/en/messages.json';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import browser from 'webextension-polyfill';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
+
 type Language = 'en';
 
 interface LanguageContextType {
@@ -48,9 +51,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     const loadLanguage = async () => {
       try {
-        const stored = await browser.storage.sync.get('language');
-        if (stored?.language && typeof stored.language === 'string') {
-          setLanguageState(normalizeLang(stored.language));
+        const stored = await storageFacade.getSetting<string | undefined>(StorageKeys.LANGUAGE);
+        if (stored && typeof stored === 'string') {
+          setLanguageState(normalizeLang(stored));
         }
       } catch (error) {
         console.error('Failed to load language preference:', error);
@@ -61,24 +64,23 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Listen for language changes from other tabs/contexts
   useEffect(() => {
-    const handleStorageChange = (
-      changes: { [key: string]: browser.Storage.StorageChange },
-      areaName: string
-    ) => {
-      if (areaName === 'sync' && changes.language?.newValue && typeof changes.language.newValue === 'string') {
-        setLanguageState(normalizeLang(changes.language.newValue));
-      }
-    };
-
-    browser.storage.onChanged.addListener(handleStorageChange);
+    const unsubscribe = storageFacade.subscribe(
+      StorageKeys.LANGUAGE,
+      (change, areaName) => {
+        if (areaName === 'sync' && typeof change.newValue === 'string') {
+          setLanguageState(normalizeLang(change.newValue));
+        }
+      },
+      { area: 'sync' }
+    );
     return () => {
-      browser.storage.onChanged.removeListener(handleStorageChange);
+      unsubscribe();
     };
   }, []);
 
   const setLanguage = async (lang: Language) => {
     try {
-      await browser.storage.sync.set({ language: lang });
+      await storageFacade.setSetting(StorageKeys.LANGUAGE, lang);
       setLanguageState(lang);
     } catch (error) {
       console.error('Failed to save language preference:', error);

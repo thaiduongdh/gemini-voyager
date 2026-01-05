@@ -9,6 +9,7 @@ import browser from 'webextension-polyfill';
 import { latexToUnicodeMath } from './UnicodeMathConverter';
 
 import { logger } from '@/core';
+import { storageFacade } from '@/core/services/StorageFacade';
 import { StorageKeys } from '@/core/types/common';
 import type { ILogger } from '@/core/types/common';
 
@@ -36,20 +37,7 @@ export class FormulaCopyService {
   private readonly logger: ILogger;
   private readonly config: Required<Omit<FormulaCopyConfig, 'format'>>;
   private currentFormat: FormulaCopyFormat = 'latex';
-
-  // Storage change listener, extracted so it can be removed on destroy
-  private readonly handleStorageChange: Parameters<
-    typeof browser.storage.onChanged.addListener
-  >[0] = (changes, areaName) => {
-    if (areaName === 'sync' && changes[StorageKeys.FORMULA_COPY_FORMAT]) {
-      const newFormat = changes[StorageKeys.FORMULA_COPY_FORMAT]
-        .newValue as FormulaCopyFormat;
-      if (newFormat === 'latex' || newFormat === 'unicodemath' || newFormat === 'no-dollar') {
-        this.currentFormat = newFormat;
-        this.logger.debug('Formula format changed', { format: newFormat });
-      }
-    }
-  };
+  private storageUnsubscribe: (() => void) | null = null;
 
   private isInitialized = false;
   private copyToast: HTMLDivElement | null = null;
@@ -100,8 +88,7 @@ export class FormulaCopyService {
    */
   private async loadFormatPreference(): Promise<void> {
     try {
-      const result = await browser.storage.sync.get(StorageKeys.FORMULA_COPY_FORMAT);
-      const format = result[StorageKeys.FORMULA_COPY_FORMAT] as FormulaCopyFormat | undefined;
+      const format = await storageFacade.getSetting<FormulaCopyFormat | undefined>(StorageKeys.FORMULA_COPY_FORMAT);
       if (format === 'latex' || format === 'unicodemath' || format === 'no-dollar') {
         this.currentFormat = format;
         this.logger.debug('Loaded formula format preference', { format });
@@ -111,7 +98,18 @@ export class FormulaCopyService {
     }
 
     // Listen for format changes
-    browser.storage.onChanged.addListener(this.handleStorageChange);
+    this.storageUnsubscribe = storageFacade.subscribe(
+      StorageKeys.FORMULA_COPY_FORMAT,
+      (change, areaName) => {
+        if (areaName !== 'sync') return;
+        const newFormat = change.newValue as FormulaCopyFormat | undefined;
+        if (newFormat === 'latex' || newFormat === 'unicodemath' || newFormat === 'no-dollar') {
+          this.currentFormat = newFormat;
+          this.logger.debug('Formula format changed', { format: newFormat });
+        }
+      },
+      { area: 'sync' }
+    );
   }
 
   /**
@@ -134,7 +132,8 @@ export class FormulaCopyService {
   public destroy(): void {
     // Always detach storage change listener
     try {
-      browser.storage.onChanged.removeListener(this.handleStorageChange);
+      this.storageUnsubscribe?.();
+      this.storageUnsubscribe = null;
     } catch (error) {
       this.logger.warn('Failed to remove storage change listener', { error });
     }

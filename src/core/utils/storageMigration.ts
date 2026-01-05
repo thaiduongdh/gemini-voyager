@@ -4,7 +4,6 @@
  */
 
 import { logger } from '@/core/services/LoggerService';
-import type { IStorageService } from '@/core/services/StorageService';
 import type { StorageKey } from '@/core/types/common';
 
 export interface MigrationResult {
@@ -14,11 +13,16 @@ export interface MigrationResult {
   errors: Array<{ key: string; error: string }>;
 }
 
+export interface StorageMigrationTarget {
+  get<T>(key: StorageKey): Promise<T | undefined>;
+  set<T>(key: StorageKey, value: T): Promise<void>;
+}
+
 /**
  * Migrate data from localStorage to chrome.storage
  *
  * @param keys - Array of localStorage keys to migrate
- * @param targetStorage - Target storage service (e.g., promptStorageService)
+ * @param targetStorage - Target storage adapter (e.g., storageFacade)
  * @param options - Migration options
  * @returns Migration result with details
  *
@@ -26,14 +30,14 @@ export interface MigrationResult {
  * ```typescript
  * const result = await migrateFromLocalStorage(
  *   [StorageKeys.PROMPT_ITEMS, StorageKeys.PROMPT_PANEL_LOCKED],
- *   promptStorageService,
+ *   storageAdapter,
  *   { deleteAfterMigration: false }
  * );
  * ```
  */
 export async function migrateFromLocalStorage(
   keys: StorageKey[],
-  targetStorage: IStorageService,
+  targetStorage: StorageMigrationTarget,
   options: {
     deleteAfterMigration?: boolean; // Whether to delete from localStorage after successful migration
     skipExisting?: boolean; // Skip keys that already exist in target storage
@@ -53,11 +57,15 @@ export async function migrateFromLocalStorage(
     try {
       // Check if already exists in target storage
       if (skipExisting) {
-        const existingResult = await targetStorage.get(key);
-        if (existingResult.success) {
-          migrationLogger.info(`Skipping key "${key}" - already exists in target storage`);
-          result.skippedKeys.push(key);
-          continue;
+        try {
+          const existingValue = await targetStorage.get(key);
+          if (existingValue !== undefined) {
+            migrationLogger.info(`Skipping key "${key}" - already exists in target storage`);
+            result.skippedKeys.push(key);
+            continue;
+          }
+        } catch (checkError) {
+          migrationLogger.warn(`Failed to check key "${key}" in target storage`, { checkError });
         }
       }
 
@@ -81,14 +89,15 @@ export async function migrateFromLocalStorage(
       }
 
       // Write to target storage
-      const writeResult = await targetStorage.set(key, parsedValue);
-      if (!writeResult.success) {
+      try {
+        await targetStorage.set(key, parsedValue);
+      } catch (writeError) {
         migrationLogger.error(`Failed to write to target storage for key "${key}"`, {
-          error: writeResult.error
+          error: writeError
         });
         result.errors.push({
           key,
-          error: writeResult.error?.message || 'Failed to write to target storage'
+          error: writeError instanceof Error ? writeError.message : 'Failed to write to target storage'
         });
         result.success = false;
         continue;
@@ -136,10 +145,14 @@ export async function migrateFromLocalStorage(
  */
 export async function isMigrationCompleted(
   key: StorageKey,
-  targetStorage: IStorageService
+  targetStorage: StorageMigrationTarget
 ): Promise<boolean> {
-  const result = await targetStorage.get(key);
-  return result.success;
+  try {
+    const result = await targetStorage.get(key);
+    return result !== undefined;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -151,7 +164,7 @@ export async function isMigrationCompleted(
  */
 export async function getMigrationStatus(
   keys: StorageKey[],
-  targetStorage: IStorageService
+  targetStorage: StorageMigrationTarget
 ): Promise<Record<string, boolean>> {
   const status: Record<string, boolean> = {};
 

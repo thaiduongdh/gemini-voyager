@@ -5,6 +5,10 @@
  * Based on the chatWidth implementation pattern
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
+
 const STYLE_ID = 'gemini-voyager-edit-input-width';
 const DEFAULT_PERCENT = 60;
 const MIN_PERCENT = 30;
@@ -142,17 +146,18 @@ function removeStyles(): void {
  */
 export function startEditInputWidthAdjuster(): void {
   let currentWidthPercent = DEFAULT_PERCENT;
+  let observerUnsubscribe: (() => void) | null = null;
 
   // Load initial width from storage
-  chrome.storage?.sync?.get({ geminiEditInputWidth: DEFAULT_PERCENT }, (res) => {
-    const storedWidth = res?.geminiEditInputWidth;
+  storageFacade.getSettings({ [StorageKeys.EDIT_INPUT_WIDTH]: DEFAULT_PERCENT }, (res) => {
+    const storedWidth = res?.[StorageKeys.EDIT_INPUT_WIDTH];
     const normalized = normalizePercent(storedWidth as number, DEFAULT_PERCENT);
     currentWidthPercent = normalized;
     applyWidth(currentWidthPercent);
 
     if (typeof storedWidth === 'number' && storedWidth !== normalized) {
       try {
-        chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
+        void storageFacade.setSetting(StorageKeys.EDIT_INPUT_WIDTH, normalized).catch(() => {});
       } catch (e) {
         console.warn('[Gemini Voyager] Failed to migrate edit input width to %:', e);
       }
@@ -160,53 +165,49 @@ export function startEditInputWidthAdjuster(): void {
   });
 
   // Listen for changes from storage (when user adjusts in popup)
-  chrome.storage?.onChanged?.addListener((changes, area) => {
-    if (area === 'sync' && changes.geminiEditInputWidth) {
-      const newWidth = changes.geminiEditInputWidth.newValue;
+  const unsubscribeStorage = storageFacade.subscribe(
+    StorageKeys.EDIT_INPUT_WIDTH,
+    (change, area) => {
+      if (area !== 'sync') return;
+      const newWidth = change.newValue;
       if (typeof newWidth === 'number') {
         const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
         currentWidthPercent = normalized;
         applyWidth(currentWidthPercent);
 
         if (normalized !== newWidth) {
-          try {
-            chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
-          } catch (e) {
+          void storageFacade.setSetting(StorageKeys.EDIT_INPUT_WIDTH, normalized).catch((e) => {
             console.warn('[Gemini Voyager] Failed to migrate edit input width to % on change:', e);
-          }
+          });
         }
       }
-    }
-  });
+    },
+    { area: 'sync' }
+  );
 
   // Re-apply styles when DOM changes (for dynamic content)
   // Use debouncing and cache the width to avoid storage reads
   let debounceTimer: number | null = null;
-  const observer = new MutationObserver(() => {
-    if (debounceTimer !== null) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = window.setTimeout(() => {
-      // Use cached width instead of reading from storage
-      applyWidth(currentWidthPercent);
-      debounceTimer = null;
-    }, 200);
-  });
-
-  // Observe the main conversation area for changes
-  const main = document.querySelector('main');
-  if (main) {
-    observer.observe(main, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class'], // Watch for class changes (e.g., edit-mode added)
-    });
-  }
+  observerUnsubscribe = sharedObserverPool.register(
+    ['main', '.edit-mode'],
+    () => {
+      if (debounceTimer !== null) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = window.setTimeout(() => {
+        // Use cached width instead of reading from storage
+        applyWidth(currentWidthPercent);
+        debounceTimer = null;
+      }, 200);
+    },
+    { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] },
+    () => document.querySelector('main')
+  );
 
   // Clean up on unload
   window.addEventListener('beforeunload', () => {
-    observer.disconnect();
+    observerUnsubscribe?.();
+    unsubscribeStorage();
     removeStyles();
   });
 }

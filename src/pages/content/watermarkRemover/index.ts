@@ -8,6 +8,9 @@
  * Automatically detects and removes watermarks from Gemini-generated images on the page.
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
 import { WatermarkEngine } from './watermarkEngine';
 
 let engine: WatermarkEngine | null = null;
@@ -209,12 +212,11 @@ const processAllImages = (): void => {
  */
 const setupMutationObserver = (): void => {
     const debouncedProcess = debounce(processAllImages, 100);
-    new MutationObserver(debouncedProcess).observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true, // Watch for attribute changes (like native buttons appearing)
-        attributeFilter: ['class', 'src']
-    });
+    sharedObserverPool.register(
+        ['img[src*="googleusercontent.com"]', 'generated-image', '.generated-image-container'],
+        () => debouncedProcess(),
+        { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'src'] }
+    );
     console.log('[Gemini Voyager] Watermark remover MutationObserver active');
 };
 
@@ -224,8 +226,8 @@ const setupMutationObserver = (): void => {
 export async function startWatermarkRemover(): Promise<void> {
     try {
         // Check if feature is enabled
-        const result = await chrome.storage?.sync?.get({ geminiWatermarkRemoverEnabled: true });
-        if (result?.geminiWatermarkRemoverEnabled === false) {
+        const result = await storageFacade.getSettings({ [StorageKeys.WATERMARK_REMOVER_ENABLED]: true });
+        if (result?.[StorageKeys.WATERMARK_REMOVER_ENABLED] === false) {
             console.log('[Gemini Voyager] Watermark remover is disabled');
             return;
         }

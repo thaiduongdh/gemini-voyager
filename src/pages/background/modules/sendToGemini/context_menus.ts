@@ -15,6 +15,8 @@ import { handleGemini, handleGeminiImage, handleGeminiVideo } from './gemini_ser
 import { handleChatGPT } from './chatgpt_service';
 import { addQueueItem } from './queue_service';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+
 let contextMenuRefreshInProgress = false;
 let contextMenuRefreshQueued = false;
 let menusInitialized = false;
@@ -310,7 +312,7 @@ export function refreshContextMenus(): void {
     }
     contextMenuRefreshInProgress = true;
 
-    chrome.storage.local.get(
+    void storageFacade.getDataMap(
         { [STORAGE_KEYS.advancedMenu]: false },
         (result) => {
             const advancedMenu = result[STORAGE_KEYS.advancedMenu];

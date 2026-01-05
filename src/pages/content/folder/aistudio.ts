@@ -1,10 +1,9 @@
-import browser from 'webextension-polyfill';
-
 import type { Folder, FolderData, ConversationReference, DragData } from './types';
 
 import { DataBackupService } from '@/core/services/DataBackupService';
 import { getStorageMonitor } from '@/core/services/StorageMonitor';
-import { storageService } from '@/core/services/StorageService';
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
 import { StorageKeys } from '@/core/types/common';
 import { initI18n, createTranslator } from '@/utils/i18n';
 
@@ -12,17 +11,24 @@ function waitForElement<T extends Element = Element>(selector: string, timeoutMs
   return new Promise((resolve) => {
     const found = document.querySelector(selector) as T | null;
     if (found) return resolve(found);
-    const obs = new MutationObserver(() => {
-      const el = document.querySelector(selector) as T | null;
-      if (el) {
-        try { obs.disconnect(); } catch { }
+    let timeoutId: number | null = null;
+    const unsubscribe = sharedObserverPool.register(
+      selector,
+      () => {
+        const el = document.querySelector(selector) as T | null;
+        if (!el) return;
+        unsubscribe();
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         resolve(el);
-      }
-    });
-    try { obs.observe(document.body, { childList: true, subtree: true }); } catch { }
+      },
+      { childList: true, subtree: true }
+    );
     if (timeoutMs > 0) {
-      setTimeout(() => {
-        try { obs.disconnect(); } catch { }
+      timeoutId = window.setTimeout(() => {
+        try { unsubscribe(); } catch { }
         resolve(null);
       }, timeoutMs);
     }
@@ -83,7 +89,7 @@ export class AIStudioFolderManager {
   private folderEnabled: boolean = true; // Whether folder feature is enabled
   private backupService!: DataBackupService<FolderData>; // Initialized in init()
   private sidebarWidth: number = 280; // Default sidebar width
-  private readonly SIDEBAR_WIDTH_KEY = 'gvAIStudioSidebarWidth';
+  private readonly SIDEBAR_WIDTH_KEY = StorageKeys.AISTUDIO_SIDEBAR_WIDTH;
   private readonly MIN_SIDEBAR_WIDTH = 240;
   private readonly MAX_SIDEBAR_WIDTH = 600;
   private readonly UNCATEGORIZED_KEY = '__uncategorized__'; // Special key for root-level conversations
@@ -187,9 +193,24 @@ export class AIStudioFolderManager {
 
   private async load(): Promise<void> {
     try {
-      const res = await storageService.get<FolderData>(this.STORAGE_KEY);
-      if (res.success && res.data && validateFolderData(res.data)) {
-        this.data = res.data;
+      let stored: FolderData | null = null;
+      if (storageFacade.isAvailable('sync')) {
+        const res = await storageFacade.getSettings([this.STORAGE_KEY]);
+        stored = (res?.[this.STORAGE_KEY] as FolderData) || null;
+      }
+
+      if (!stored) {
+        try {
+          const raw = localStorage.getItem(this.STORAGE_KEY);
+          stored = raw ? (JSON.parse(raw) as FolderData) : null;
+        } catch (error) {
+          console.warn('[AIStudioFolderManager] Failed to parse localStorage data:', error);
+          stored = null;
+        }
+      }
+
+      if (stored && validateFolderData(stored)) {
+        this.data = stored;
         // Create primary backup on successful load
         this.backupService.createPrimaryBackup(this.data);
       } else {
@@ -209,11 +230,29 @@ export class AIStudioFolderManager {
       // Create emergency backup BEFORE saving (snapshot of previous state)
       this.backupService.createEmergencyBackup(this.data);
 
-      // Attempt to save to main storage
-      await storageService.set<FolderData>(this.STORAGE_KEY, this.data);
+      let saved = false;
+      if (storageFacade.isAvailable('sync')) {
+        try {
+          await storageFacade.setSetting(this.STORAGE_KEY, this.data);
+          saved = true;
+        } catch (error) {
+          console.warn('[AIStudioFolderManager] Failed to save to sync storage:', error);
+        }
+      }
+
+      if (!saved) {
+        try {
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+          saved = true;
+        } catch (error) {
+          console.warn('[AIStudioFolderManager] Failed to save to localStorage:', error);
+        }
+      }
 
       // Create primary backup AFTER successful save
-      this.backupService.createPrimaryBackup(this.data);
+      if (saved) {
+        this.backupService.createPrimaryBackup(this.data);
+      }
     } catch (error) {
       console.error('[AIStudioFolderManager] Save error:', error);
       // Show error notification to user
@@ -631,14 +670,18 @@ export class AIStudioFolderManager {
   private observePromptList(): void {
     const root = this.historyRoot;
     if (!root) return;
-    const observer = new MutationObserver(() => {
-      this.bindDraggablesInPromptList();
-      // Update highlight when the list updates
-      this.highlightActiveConversation();
-    });
-    try { observer.observe(root, { childList: true, subtree: true }); } catch { }
+    const unsubscribe = sharedObserverPool.register(
+      undefined,
+      () => {
+        this.bindDraggablesInPromptList();
+        // Update highlight when the list updates
+        this.highlightActiveConversation();
+      },
+      { childList: true, subtree: true },
+      root
+    );
     this.cleanupFns.push(() => {
-      try { observer.disconnect(); } catch { }
+      try { unsubscribe(); } catch { }
     });
 
     // Also update on clicks within the prompt list (SPA navigation)
@@ -688,29 +731,18 @@ export class AIStudioFolderManager {
    * This is needed because the library page loads rows dynamically
    */
   private observeLibraryTable(): void {
-    // The library table is within a mat-table element
-    const tableRoot = document.querySelector('table.mat-mdc-table, mat-table') as HTMLElement | null;
-    if (!tableRoot) {
-      // Fallback: observe entire body for table appearance
-      const bodyObserver = new MutationObserver(() => {
-        const table = document.querySelector('table.mat-mdc-table, mat-table');
-        if (table) {
-          this.bindDraggablesInLibraryTable();
-        }
-      });
-      try { bodyObserver.observe(document.body, { childList: true, subtree: true }); } catch { }
-      this.cleanupFns.push(() => {
-        try { bodyObserver.disconnect(); } catch { }
-      });
-      return;
-    }
-
-    const observer = new MutationObserver(() => {
-      this.bindDraggablesInLibraryTable();
-    });
-    try { observer.observe(tableRoot, { childList: true, subtree: true }); } catch { }
+    const tableSelector = 'table.mat-mdc-table, mat-table';
+    // Bind once immediately in case the table is already present
+    this.bindDraggablesInLibraryTable();
+    const unsubscribe = sharedObserverPool.register(
+      tableSelector,
+      () => {
+        this.bindDraggablesInLibraryTable();
+      },
+      { childList: true, subtree: true }
+    );
     this.cleanupFns.push(() => {
-      try { observer.disconnect(); } catch { }
+      try { unsubscribe(); } catch { }
     });
   }
 
@@ -1126,8 +1158,8 @@ export class AIStudioFolderManager {
 
   private async loadFolderEnabledSetting(): Promise<void> {
     try {
-      const result = await browser.storage.sync.get({ geminiFolderEnabled: true });
-      this.folderEnabled = result.geminiFolderEnabled !== false;
+      const result = await storageFacade.getSettings({ [StorageKeys.FOLDER_ENABLED]: true });
+      this.folderEnabled = result[StorageKeys.FOLDER_ENABLED] !== false;
     } catch (error) {
       console.error('[AIStudioFolderManager] Failed to load folder enabled setting:', error);
       this.folderEnabled = true;
@@ -1135,12 +1167,15 @@ export class AIStudioFolderManager {
   }
 
   private setupStorageListener(): void {
-    browser.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === 'sync' && changes.geminiFolderEnabled) {
-        this.folderEnabled = changes.geminiFolderEnabled.newValue !== false;
+    storageFacade.subscribe(
+      StorageKeys.FOLDER_ENABLED,
+      (change, areaName) => {
+        if (areaName !== 'sync') return;
+        this.folderEnabled = change.newValue !== false;
         this.applyFolderEnabledSetting();
-      }
-    });
+      },
+      { area: 'sync' }
+    );
   }
 
   private applyFolderEnabledSetting(): void {
@@ -1268,7 +1303,7 @@ export class AIStudioFolderManager {
     try {
       // Try chrome.storage.sync first
       if (this.isExtensionContextValid()) {
-        const result = await browser.storage.sync.get({ [this.SIDEBAR_WIDTH_KEY]: 280 });
+        const result = await storageFacade.getSettings({ [this.SIDEBAR_WIDTH_KEY]: 280 });
         const width = result[this.SIDEBAR_WIDTH_KEY];
         if (typeof width === 'number' && width >= this.MIN_SIDEBAR_WIDTH && width <= this.MAX_SIDEBAR_WIDTH) {
           this.sidebarWidth = width;
@@ -1307,7 +1342,7 @@ export class AIStudioFolderManager {
     // Try to save to chrome.storage.sync if context is valid
     if (this.isExtensionContextValid()) {
       try {
-        await browser.storage.sync.set({ [this.SIDEBAR_WIDTH_KEY]: this.sidebarWidth });
+        await storageFacade.setSetting(this.SIDEBAR_WIDTH_KEY, this.sidebarWidth);
       } catch (error) {
         // Silent fail if extension context is invalidated (happens during dev reload)
         if (error instanceof Error && !error.message.includes('Extension context invalidated')) {
@@ -1444,31 +1479,27 @@ export class AIStudioFolderManager {
     };
 
     // Monitor sidebar state changes by watching the 'expanded' class
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          updateHandleVisibility();
-          this.applySidebarWidth(); // Reapply width based on current state
-          break;
+    const unsubscribe = sharedObserverPool.register(
+      '.nav-content.v3-left-nav',
+      (mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            updateHandleVisibility();
+            this.applySidebarWidth(); // Reapply width based on current state
+            break;
+          }
         }
-      }
-    });
-
-    try {
-      observer.observe(navContent, {
-        attributes: true,
-        attributeFilter: ['class'],
-      });
-    } catch (error) {
-      console.error('[AIStudioFolderManager] Failed to observe nav-content:', error);
-    }
+      },
+      { attributes: true, attributeFilter: ['class'] },
+      navContent
+    );
 
     // Initial visibility update
     updateHandleVisibility();
 
     this.cleanupFns.push(() => {
       try {
-        observer.disconnect();
+        unsubscribe();
         handle.removeEventListener('mousedown', handleMouseDown);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);

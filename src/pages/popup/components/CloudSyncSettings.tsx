@@ -5,6 +5,8 @@ import { Card, CardContent, CardTitle } from '../../../components/ui/card';
 import { Label } from '../../../components/ui/label';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
 import type { SyncState, SyncMode } from '@/core/types/sync';
 import { DEFAULT_SYNC_STATE } from '@/core/types/sync';
 
@@ -125,25 +127,28 @@ export function CloudSyncSettings() {
 
             try {
                 // Try chrome.storage.local first (used by Safari and for sync data)
-                const storageResult = await chrome.storage.local.get(['gvFolderData', 'gvPromptItems']);
+                const storageResult = await storageFacade.getDataMap([
+                    StorageKeys.FOLDER_DATA,
+                    StorageKeys.PROMPT_ITEMS,
+                ]);
 
-                if (storageResult.gvFolderData) {
-                    folders = storageResult.gvFolderData as any;
+                if (storageResult[StorageKeys.FOLDER_DATA]) {
+                    folders = storageResult[StorageKeys.FOLDER_DATA] as any;
                     console.log('[CloudSyncSettings] Loaded folders from chrome.storage.local:', folders);
                 } else {
                     // Fallback to localStorage (only works when popup opened from same origin)
-                    const foldersStr = localStorage.getItem('gvFolderData');
+                    const foldersStr = localStorage.getItem(StorageKeys.FOLDER_DATA);
                     if (foldersStr) {
                         folders = JSON.parse(foldersStr);
                         console.log('[CloudSyncSettings] Loaded folders from localStorage:', folders);
                     }
                 }
 
-                if (storageResult.gvPromptItems) {
-                    prompts = storageResult.gvPromptItems as any;
+                if (storageResult[StorageKeys.PROMPT_ITEMS]) {
+                    prompts = storageResult[StorageKeys.PROMPT_ITEMS] as any;
                     console.log('[CloudSyncSettings] Loaded prompts from chrome.storage.local:', prompts.length, 'items');
                 } else {
-                    const promptsStr = localStorage.getItem('gvPromptItems');
+                    const promptsStr = localStorage.getItem(StorageKeys.PROMPT_ITEMS);
                     if (promptsStr) {
                         prompts = JSON.parse(promptsStr);
                         console.log('[CloudSyncSettings] Loaded prompts from localStorage:', prompts.length, 'items');
@@ -211,9 +216,9 @@ export function CloudSyncSettings() {
             const promptItems = prompts?.items || [];
             console.log('[CloudSyncSettings] Downloaded folders:', folderData.folders?.length || 0, 'prompts:', promptItems.length);
 
-            await chrome.storage.local.set({
-                gvFolderData: folderData,
-                gvPromptItems: promptItems,
+            await storageFacade.setDataMap({
+                [StorageKeys.FOLDER_DATA]: folderData,
+                [StorageKeys.PROMPT_ITEMS]: promptItems,
             });
 
             // Notify content script to reload folders

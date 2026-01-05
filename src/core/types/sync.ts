@@ -4,6 +4,7 @@
  */
 
 import type { FolderData } from './folder';
+import { StorageKeys } from './common';
 
 /**
  * Sync mode configuration
@@ -81,9 +82,9 @@ export interface SyncData {
  * Storage keys for sync-related settings
  */
 export const SyncStorageKeys = {
-    MODE: 'gvSyncMode',
-    LAST_SYNC_TIME: 'gvLastSyncTime',
-    SYNC_ERROR: 'gvSyncError',
+    MODE: StorageKeys.SYNC_MODE,
+    LAST_SYNC_TIME: StorageKeys.SYNC_LAST_TIME,
+    SYNC_ERROR: StorageKeys.SYNC_LAST_ERROR,
 } as const;
 
 /**

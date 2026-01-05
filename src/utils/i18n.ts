@@ -1,6 +1,9 @@
 import enMessages from '@locales/en/messages.json';
 import browser from 'webextension-polyfill';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
+
 type Language = 'en';
 
 const normalizeLang = (lang: string | undefined): Language => {
@@ -31,9 +34,9 @@ const dictionaries: Record<Language, Record<string, string>> = {
 export async function getCurrentLanguage(): Promise<Language> {
   try {
     // Try to get user's saved language preference
-    const stored = await browser.storage.sync.get('language');
-    if (stored?.language && typeof stored.language === 'string') {
-      return normalizeLang(stored.language);
+    const stored = await storageFacade.getSetting<string | undefined>(StorageKeys.LANGUAGE);
+    if (stored && typeof stored === 'string') {
+      return normalizeLang(stored);
     }
   } catch (error) {
     console.warn('[i18n] Failed to get saved language:', error);
@@ -76,11 +79,15 @@ export async function initI18n(): Promise<void> {
   cachedLanguage = await getCurrentLanguage();
 
   // Listen for language changes
-  browser.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'sync' && changes.language?.newValue && typeof changes.language.newValue === 'string') {
-      cachedLanguage = normalizeLang(changes.language.newValue);
-    }
-  });
+  storageFacade.subscribe(
+    StorageKeys.LANGUAGE,
+    (change, areaName) => {
+      if (areaName === 'sync' && typeof change.newValue === 'string') {
+        cachedLanguage = normalizeLang(change.newValue);
+      }
+    },
+    { area: 'sync' }
+  );
 }
 
 /**

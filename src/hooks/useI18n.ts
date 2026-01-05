@@ -1,6 +1,8 @@
 import enMessages from '@locales/en/messages.json';
 import { useState, useEffect } from 'react';
-import browser from 'webextension-polyfill';
+
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
 
 const useI18n = () => {
   const normalizeLang = (lang: string | undefined): 'en' => 'en';
@@ -27,8 +29,8 @@ const useI18n = () => {
 
   useEffect(() => {
     const getLanguage = async () => {
-      const stored = await browser.storage.sync.get('language');
-      const lang = typeof stored?.language === 'string' ? stored.language : undefined;
+      const stored = await storageFacade.getSetting<string | undefined>(StorageKeys.LANGUAGE);
+      const lang = typeof stored === 'string' ? stored : undefined;
       if (lang) {
         setLanguage(normalizeLang(lang));
       }
@@ -42,7 +44,7 @@ const useI18n = () => {
 
   const setLanguageWrapper = async (lang: string) => {
     const norm = normalizeLang(lang);
-    await browser.storage.sync.set({ language: norm });
+    await storageFacade.setSetting(StorageKeys.LANGUAGE, norm);
     setLanguage(norm);
   };
 

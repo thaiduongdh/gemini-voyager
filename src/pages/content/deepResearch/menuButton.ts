@@ -6,6 +6,8 @@ import { downloadMarkdown } from './download';
 import { extractThinkingPanels } from './extractor';
 import { formatToMarkdown } from './formatter';
 
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+
 /**
  * Wait for an element to appear in the DOM
  */
@@ -16,21 +18,24 @@ function waitForElement(selector: string, timeout: number = 5000): Promise<Eleme
             return resolve(element);
         }
 
-        const observer = new MutationObserver(() => {
-            const found = document.querySelector(selector);
-            if (found) {
-                observer.disconnect();
+        let timeoutId: number | null = null;
+        const unsubscribe = sharedObserverPool.register(
+            selector,
+            () => {
+                const found = document.querySelector(selector);
+                if (!found) return;
+                unsubscribe();
+                if (timeoutId !== null) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
                 resolve(found);
-            }
-        });
+            },
+            { childList: true, subtree: true }
+        );
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        setTimeout(() => {
-            observer.disconnect();
+        timeoutId = window.setTimeout(() => {
+            try { unsubscribe(); } catch { }
             resolve(null);
         }, timeout);
     });

@@ -3,6 +3,10 @@
  * Since Gemini doesn't expose actual timestamps, we track when messages appear
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
+
 const TIMESTAMP_CLASS = 'gv-message-timestamp';
 const TIMESTAMP_ATTR = 'data-gv-timestamp';
 const STYLE_ID = 'gv-message-timestamps-style';
@@ -168,8 +172,9 @@ function updateTimestamps(): void {
 
 export function startMessageTimestamps(): { destroy: () => void } {
     let enabled = true;
-    let observer: MutationObserver | null = null;
+    let observerUnsubscribe: (() => void) | null = null;
     let updateInterval: number | null = null;
+    let unsubscribeStorage: (() => void) | null = null;
 
     const init = () => {
         injectStyles();
@@ -179,21 +184,23 @@ export function startMessageTimestamps(): { destroy: () => void } {
         updateInterval = window.setInterval(updateTimestamps, 60000);
 
         // Observe for new messages
-        const main = document.querySelector('main');
-        if (main) {
-            let debounceTimer: number | null = null;
-
-            observer = new MutationObserver(() => {
+        let debounceTimer: number | null = null;
+        observerUnsubscribe = sharedObserverPool.register(
+            getMessageSelectors(),
+            () => {
                 if (debounceTimer) clearTimeout(debounceTimer);
                 debounceTimer = window.setTimeout(processMessages, 200);
-            });
-
-            observer.observe(main, { childList: true, subtree: true });
-        }
+            },
+            { childList: true, subtree: true },
+            () => document.querySelector('main')
+        );
     };
 
     const cleanup = () => {
-        if (observer) observer.disconnect();
+        if (observerUnsubscribe) {
+            observerUnsubscribe();
+            observerUnsubscribe = null;
+        }
         if (updateInterval) clearInterval(updateInterval);
 
         // Remove timestamps
@@ -206,30 +213,32 @@ export function startMessageTimestamps(): { destroy: () => void } {
         if (style) style.remove();
     };
 
-    chrome.storage?.sync?.get({ gvMessageTimestampsEnabled: true }, (res) => {
-        enabled = res?.gvMessageTimestampsEnabled !== false;
+    storageFacade.getSettings({ [StorageKeys.MESSAGE_TIMESTAMPS_ENABLED]: true }, (res) => {
+        enabled = res?.[StorageKeys.MESSAGE_TIMESTAMPS_ENABLED] !== false;
         if (enabled) {
             init();
         }
     });
 
-    const storageListener = (changes: any, area: string) => {
-        if (area === 'sync' && 'gvMessageTimestampsEnabled' in changes) {
-            enabled = changes.gvMessageTimestampsEnabled.newValue !== false;
+    unsubscribeStorage = storageFacade.subscribe(
+        StorageKeys.MESSAGE_TIMESTAMPS_ENABLED,
+        (change, area) => {
+            if (area !== 'sync') return;
+            enabled = change.newValue !== false;
             if (enabled) {
                 init();
             } else {
                 cleanup();
             }
-        }
-    };
-
-    chrome.storage?.onChanged?.addListener(storageListener);
+        },
+        { area: 'sync' }
+    );
 
     return {
         destroy: () => {
             cleanup();
-            chrome.storage?.onChanged?.removeListener(storageListener);
+            unsubscribeStorage?.();
+            unsubscribeStorage = null;
             messageTimestamps.clear();
         },
     };

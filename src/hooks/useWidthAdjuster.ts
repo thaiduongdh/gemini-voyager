@@ -1,7 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import type { StorageKey } from '@/core/types/common';
+
 interface UseWidthAdjusterOptions {
-  storageKey: string;
+  storageKey: StorageKey;
   defaultValue: number;
   onApply: (value: number) => void;
   /**
@@ -29,7 +32,7 @@ export function useWidthAdjuster({
   // Load initial width from storage
   useEffect(() => {
     try {
-      chrome.storage?.sync?.get({ [storageKey]: defaultValue }, (res) => {
+      storageFacade.getSettings({ [storageKey]: defaultValue }, (res) => {
         const storedWidth = res?.[storageKey];
         if (typeof storedWidth === 'number') {
           const normalized = normalize ? normalize(storedWidth) : storedWidth;

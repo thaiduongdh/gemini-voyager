@@ -13,6 +13,7 @@
  * - Collision detection with browser shortcuts
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
 import { StorageKeys } from '@/core/types/common';
 import type {
   KeyboardShortcut,
@@ -57,7 +58,7 @@ export class KeyboardShortcutService {
   private enabled: boolean = true;
   private listeners: Set<ShortcutCallback> = new Set();
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
-  private storageChangeHandler: ((changes: any, areaName: string) => void) | null = null;
+  private storageUnsubscribe: (() => void) | null = null;
 
   private constructor() {
     this.config = DEFAULT_SHORTCUTS;
@@ -87,8 +88,8 @@ export class KeyboardShortcutService {
    */
   private async loadConfig(): Promise<void> {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
-        const result = await chrome.storage.sync.get(StorageKeys.TIMELINE_SHORTCUTS);
+      if (storageFacade.isAvailable('sync')) {
+        const result = await storageFacade.getSettings([StorageKeys.TIMELINE_SHORTCUTS]);
         const stored = result[StorageKeys.TIMELINE_SHORTCUTS] as KeyboardShortcutStorage | undefined;
 
         if (stored?.shortcuts) {
@@ -128,8 +129,8 @@ export class KeyboardShortcutService {
     };
 
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
-        await chrome.storage.sync.set({ [StorageKeys.TIMELINE_SHORTCUTS]: storage });
+      if (storageFacade.isAvailable('sync')) {
+        await storageFacade.setSetting(StorageKeys.TIMELINE_SHORTCUTS, storage);
       } else {
         localStorage.setItem(StorageKeys.TIMELINE_SHORTCUTS, JSON.stringify(storage));
       }
@@ -211,22 +212,21 @@ export class KeyboardShortcutService {
    * Attach storage change listener for cross-tab sync
    */
   private attachStorageListener(): void {
-    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-      this.storageChangeHandler = (changes, areaName) => {
+    if (!storageFacade.isAvailable('sync')) return;
+    this.storageUnsubscribe = storageFacade.subscribe(
+      StorageKeys.TIMELINE_SHORTCUTS,
+      (change, areaName) => {
         if (areaName !== 'sync') return;
-        if (changes[StorageKeys.TIMELINE_SHORTCUTS]) {
-          const newValue = changes[StorageKeys.TIMELINE_SHORTCUTS].newValue as KeyboardShortcutStorage | undefined;
-          if (newValue?.shortcuts) {
-            this.config = this.validateConfig(newValue.shortcuts)
-              ? newValue.shortcuts
-              : DEFAULT_SHORTCUTS;
-            this.enabled = newValue.enabled ?? true;
-          }
+        const newValue = change.newValue as KeyboardShortcutStorage | undefined;
+        if (newValue?.shortcuts) {
+          this.config = this.validateConfig(newValue.shortcuts)
+            ? newValue.shortcuts
+            : DEFAULT_SHORTCUTS;
+          this.enabled = newValue.enabled ?? true;
         }
-      };
-
-      chrome.storage.onChanged.addListener(this.storageChangeHandler);
-    }
+      },
+      { area: 'sync' }
+    );
   }
 
   /**
@@ -360,9 +360,9 @@ export class KeyboardShortcutService {
       this.keydownHandler = null;
     }
 
-    if (this.storageChangeHandler && typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
-      chrome.storage.onChanged.removeListener(this.storageChangeHandler);
-      this.storageChangeHandler = null;
+    if (this.storageUnsubscribe) {
+      this.storageUnsubscribe();
+      this.storageUnsubscribe = null;
     }
 
     this.listeners.clear();

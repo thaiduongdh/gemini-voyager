@@ -1,5 +1,3 @@
-import browser from 'webextension-polyfill';
-
 import {
   getGemIcon,
   DEFAULT_GEM_ICON,
@@ -14,11 +12,14 @@ import type { Folder, FolderData, ConversationReference, DragData } from './type
 
 import { DataBackupService } from '@/core/services/DataBackupService';
 import { getStorageMonitor } from '@/core/services/StorageMonitor';
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
 import { FolderImportExportService } from '@/features/folder/services/FolderImportExportService';
 import type { ImportStrategy } from '@/features/folder/types/import-export';
 import { initI18n, getTranslationSync } from '@/utils/i18n';
 
-const STORAGE_KEY = 'gvFolderData';
+const STORAGE_KEY = StorageKeys.FOLDER_DATA;
 const IS_DEBUG = false; // Set to true to enable debug logging
 const ROOT_CONVERSATIONS_ID = '__root_conversations__'; // Special ID for root-level conversations
 const NOTIFICATION_TIMEOUT_MS = 10000; // Duration to show data loss notification
@@ -68,8 +69,8 @@ export class FolderManager {
   private recentSection: HTMLElement | null = null;
   private tooltipElement: HTMLElement | null = null;
   private tooltipTimeout: number | null = null;
-  private sideNavObserver: MutationObserver | null = null;
-  private conversationObserver: MutationObserver | null = null; // Observer for conversation additions/removals
+  private sideNavObserver: (() => void) | null = null;
+  private conversationObserver: (() => void) | null = null; // Observer for conversation additions/removals
   private importInProgress: boolean = false; // Lock to prevent concurrent imports
   private exportInProgress: boolean = false; // Lock to prevent concurrent exports
   private selectedConversations: Set<string> = new Set(); // For multi-select support
@@ -91,7 +92,8 @@ export class FolderManager {
   // Cleanup references
   private routeChangeCleanup: (() => void) | null = null;
   private sidebarClickListener: ((e: Event) => void) | null = null;
-  private nativeMenuObserver: MutationObserver | null = null;
+  private nativeMenuObserver: (() => void) | null = null;
+  private storageUnsubscribers: Array<() => void> = [];
 
   constructor() {
     // Create storage adapter based on browser (Factory Pattern)
@@ -201,17 +203,17 @@ export class FolderManager {
 
     // Disconnect mutation observers
     if (this.sideNavObserver) {
-      this.sideNavObserver.disconnect();
+      this.sideNavObserver();
       this.sideNavObserver = null;
     }
 
     if (this.conversationObserver) {
-      this.conversationObserver.disconnect();
+      this.conversationObserver();
       this.conversationObserver = null;
     }
 
     if (this.nativeMenuObserver) {
-      this.nativeMenuObserver.disconnect();
+      this.nativeMenuObserver();
       this.nativeMenuObserver = null;
     }
 
@@ -241,6 +243,16 @@ export class FolderManager {
       this.containerElement.remove();
       this.containerElement = null;
     }
+
+    // Remove storage listeners
+    this.storageUnsubscribers.forEach((unsubscribe) => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        console.error('[FolderManager] Failed to unsubscribe from storage:', error);
+      }
+    });
+    this.storageUnsubscribers = [];
 
     this.debug('Cleanup complete');
   }
@@ -1335,11 +1347,13 @@ export class FolderManager {
 
     // Disconnect existing observer to prevent duplicates
     if (this.conversationObserver) {
-      this.conversationObserver.disconnect();
+      this.conversationObserver();
       this.conversationObserver = null;
     }
 
-    this.conversationObserver = new MutationObserver((mutations) => {
+    this.conversationObserver = sharedObserverPool.register(
+      '[data-test-id="conversation"]',
+      (mutations) => {
       // 1. Handle added conversations (always safe)
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node) => {
@@ -1425,12 +1439,10 @@ export class FolderManager {
           }
         });
       });
-    });
-
-    this.conversationObserver.observe(this.sidebarContainer, {
-      childList: true,
-      subtree: true,
-    });
+      },
+      { childList: true, subtree: true },
+      () => this.sidebarContainer
+    );
   }
 
   /**
@@ -1444,18 +1456,23 @@ export class FolderManager {
       return;
     }
 
-    this.sideNavObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          this.updateVisibilityBasedOnSideNav();
-        }
-      });
-    });
+    if (this.sideNavObserver) {
+      this.sideNavObserver();
+      this.sideNavObserver = null;
+    }
 
-    this.sideNavObserver.observe(appRoot, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
+    this.sideNavObserver = sharedObserverPool.register(
+      '#app-root',
+      (mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            this.updateVisibilityBasedOnSideNav();
+          }
+        });
+      },
+      { attributes: true, attributeFilter: ['class'] },
+      appRoot as Element
+    );
 
     this.debug('Side nav observer setup complete');
   }
@@ -2567,52 +2584,53 @@ export class FolderManager {
   private setupNativeConversationMenuObserver(): void {
     // Disconnect existing observer if any
     if (this.nativeMenuObserver) {
-      this.nativeMenuObserver.disconnect();
+      this.nativeMenuObserver();
+      this.nativeMenuObserver = null;
     }
 
     // Observe the document for menu appearance and disappearance
-    this.nativeMenuObserver = new MutationObserver((mutations) => {
-      if (this.isDestroyed) return;
-      mutations.forEach((mutation) => {
-        // Handle added nodes (menu opening)
-        mutation.addedNodes.forEach((node) => {
-          if (node instanceof HTMLElement) {
-            // Check if this is the native conversation menu
-            const menuContent = node.querySelector('.mat-mdc-menu-content');
-            if (menuContent && !menuContent.querySelector('.gv-move-to-folder-btn')) {
-              // Check if this is a conversation menu (not model selection menu or other menus)
-              if (this.isConversationMenu(node)) {
-                this.debug('Observer: conversation menu detected, preparing to inject');
-                this.injectMoveToFolderButton(menuContent as HTMLElement);
-              } else {
-                this.debug('Observer: non-conversation menu detected, skipping injection');
+    this.nativeMenuObserver = sharedObserverPool.register(
+      ['.mat-mdc-menu-content', '.mat-mdc-menu-panel'],
+      (mutations) => {
+        if (this.isDestroyed) return;
+        mutations.forEach((mutation) => {
+          // Handle added nodes (menu opening)
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof HTMLElement) {
+              // Check if this is the native conversation menu
+              const menuContent = node.querySelector('.mat-mdc-menu-content');
+              if (menuContent && !menuContent.querySelector('.gv-move-to-folder-btn')) {
+                // Check if this is a conversation menu (not model selection menu or other menus)
+                if (this.isConversationMenu(node)) {
+                  this.debug('Observer: conversation menu detected, preparing to inject');
+                  this.injectMoveToFolderButton(menuContent as HTMLElement);
+                } else {
+                  this.debug('Observer: non-conversation menu detected, skipping injection');
+                }
+              } else if (menuContent) {
+                this.debug('Observer: menu content detected but button already present');
               }
-            } else if (menuContent) {
-              this.debug('Observer: menu content detected but button already present');
             }
-          }
-        });
+          });
 
-        // Handle removed nodes (menu closing)
-        mutation.removedNodes.forEach((node) => {
-          if (node instanceof HTMLElement) {
-            // Check if a menu panel was removed
-            const isMenuPanel = node.classList?.contains('mat-mdc-menu-panel') ||
-              node.querySelector('.mat-mdc-menu-panel');
-            if (isMenuPanel) {
-              this.debug('Observer: menu closed, clearing conversation state');
-              this.lastClickedConversation = null;
-              this.lastClickedConversationInfo = null;
+          // Handle removed nodes (menu closing)
+          mutation.removedNodes.forEach((node) => {
+            if (node instanceof HTMLElement) {
+              // Check if a menu panel was removed
+              const isMenuPanel = node.classList?.contains('mat-mdc-menu-panel') ||
+                node.querySelector('.mat-mdc-menu-panel');
+              if (isMenuPanel) {
+                this.debug('Observer: menu closed, clearing conversation state');
+                this.lastClickedConversation = null;
+                this.lastClickedConversationInfo = null;
+              }
             }
-          }
+          });
         });
-      });
-    });
-
-    this.nativeMenuObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+      },
+      { childList: true, subtree: true },
+      () => document.body
+    );
   }
 
   private isConversationMenu(menuElement: HTMLElement): boolean {
@@ -3651,8 +3669,8 @@ export class FolderManager {
 
   private async loadFolderEnabledSetting(): Promise<void> {
     try {
-      const result = await browser.storage.sync.get({ geminiFolderEnabled: true });
-      this.folderEnabled = result.geminiFolderEnabled !== false;
+      const result = await storageFacade.getSettings({ [StorageKeys.FOLDER_ENABLED]: true });
+      this.folderEnabled = result[StorageKeys.FOLDER_ENABLED] !== false;
       this.debug('Loaded folder enabled setting:', this.folderEnabled);
     } catch (error) {
       console.error('[FolderManager] Failed to load folder enabled setting:', error);
@@ -3662,8 +3680,8 @@ export class FolderManager {
 
   private async loadHideArchivedSetting(): Promise<void> {
     try {
-      const result = await browser.storage.sync.get({ geminiFolderHideArchivedConversations: false });
-      this.hideArchivedConversations = !!result.geminiFolderHideArchivedConversations;
+      const result = await storageFacade.getSettings({ [StorageKeys.FOLDER_HIDE_ARCHIVED]: false });
+      this.hideArchivedConversations = !!result[StorageKeys.FOLDER_HIDE_ARCHIVED];
       this.debug('Loaded hide archived setting:', this.hideArchivedConversations);
     } catch (error) {
       console.error('[FolderManager] Failed to load hide archived setting:', error);
@@ -3673,27 +3691,45 @@ export class FolderManager {
 
   private setupStorageListener(): void {
     // Listen for sync settings changes
-    browser.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === 'sync') {
-        if (changes.geminiFolderEnabled) {
-          this.folderEnabled = changes.geminiFolderEnabled.newValue !== false;
+    this.storageUnsubscribers.push(
+      storageFacade.subscribe(
+        StorageKeys.FOLDER_ENABLED,
+        (change, areaName) => {
+          if (areaName !== 'sync') return;
+          this.folderEnabled = change.newValue !== false;
           this.debug('Folder enabled setting changed:', this.folderEnabled);
           // Apply the change to folder visibility
           this.applyFolderEnabledSetting();
-        }
-        if (changes.geminiFolderHideArchivedConversations) {
-          this.hideArchivedConversations = !!changes.geminiFolderHideArchivedConversations.newValue;
+        },
+        { area: 'sync' }
+      )
+    );
+    this.storageUnsubscribers.push(
+      storageFacade.subscribe(
+        StorageKeys.FOLDER_HIDE_ARCHIVED,
+        (change, areaName) => {
+          if (areaName !== 'sync') return;
+          this.hideArchivedConversations = !!change.newValue;
           this.debug('Hide archived setting changed:', this.hideArchivedConversations);
           // Apply the change to all conversations
           this.applyHideArchivedSetting();
-        }
-      }
-      // Listen for folder data changes from cloud sync
-      if (areaName === 'local' && changes.gvFolderData) {
-        this.debug('Folder data changed in chrome.storage.local, reloading...');
-        this.reloadFoldersFromStorage();
-      }
-    });
+        },
+        { area: 'sync' }
+      )
+    );
+
+    // Listen for folder data changes from cloud sync
+    this.storageUnsubscribers.push(
+      storageFacade.subscribe(
+        StorageKeys.FOLDER_DATA,
+        (_change, areaName) => {
+          if (areaName !== 'local') return;
+          this.debug('Folder data changed in chrome.storage.local, reloading...');
+          this.reloadFoldersFromStorage();
+        },
+        { area: 'local' }
+      )
+    );
 
     // Listen for reload message from popup after sync
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -3727,9 +3763,9 @@ export class FolderManager {
    */
   private async checkAutoSync(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get('gvSyncMode');
-      console.log('[FolderManager] Auto-sync check, mode:', result.gvSyncMode);
-      if (result.gvSyncMode === 'auto') {
+      const syncMode = await storageFacade.getData<unknown>(StorageKeys.SYNC_MODE);
+      console.log('[FolderManager] Auto-sync check, mode:', syncMode);
+      if (syncMode === 'auto') {
         console.log('[FolderManager] Auto-sync is enabled, triggering sync in 1s...');
         // Delay to ensure service worker is ready
         setTimeout(() => {

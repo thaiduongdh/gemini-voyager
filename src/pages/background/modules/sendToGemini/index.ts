@@ -25,6 +25,8 @@ import { handleChatGPT } from './chatgpt_service';
 import { refreshContextMenus, initContextMenus, setupContextMenuListeners } from './context_menus';
 // Analytics removed for utilitarian build
 
+import { storageFacade } from '@/core/services/StorageFacade';
+
 function sendQueueStatus(
     status: 'started' | 'progress' | 'complete' | 'error',
     target: 'gemini' | 'chatgpt',
@@ -40,22 +42,42 @@ function sendQueueStatus(
 }
 
 function initListeners() {
-    chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local') {
-            if (changes[STORAGE_KEYS.queue]) {
+    storageFacade.subscribe(
+        STORAGE_KEYS.queue,
+        (_change, area) => {
+            if (area === 'local') {
                 updateBadge();
             }
-            if (changes[STORAGE_KEYS.advancedMenu]) {
+        },
+        { area: 'local' }
+    );
+    storageFacade.subscribe(
+        STORAGE_KEYS.advancedMenu,
+        (_change, area) => {
+            if (area === 'local') {
                 refreshContextMenus();
             }
-            if (changes[STORAGE_KEYS.model]) {
+        },
+        { area: 'local' }
+    );
+    storageFacade.subscribe(
+        STORAGE_KEYS.model,
+        (_change, area) => {
+            if (area === 'local') {
                 refreshContextMenus();
             }
-            if (changes[STORAGE_KEYS.targetTab]) {
+        },
+        { area: 'local' }
+    );
+    storageFacade.subscribe(
+        STORAGE_KEYS.targetTab,
+        (_change, area) => {
+            if (area === 'local') {
                 // Handle target tab change if needed
             }
-        }
-    });
+        },
+        { area: 'local' }
+    );
 
     chrome.runtime.onMessage.addListener((request: ExtensionMessage) => {
         if (request.action === 'process_queue') {
@@ -184,7 +206,7 @@ function initListeners() {
 }
 
 function initStorageDefaults() {
-    chrome.storage.local.get(
+    void storageFacade.getDataMap(
         [
             STORAGE_KEYS.enabled,
             STORAGE_KEYS.advancedMenu,
@@ -202,7 +224,7 @@ function initStorageDefaults() {
             if (result[STORAGE_KEYS.customPrompt] === undefined) defaults[STORAGE_KEYS.customPrompt] = '';
             if (result[STORAGE_KEYS.appendInstruction] === undefined) defaults[STORAGE_KEYS.appendInstruction] = true;
             if (Object.keys(defaults).length) {
-                chrome.storage.local.set(defaults, refreshContextMenus);
+                void storageFacade.setDataMap(defaults).then(() => refreshContextMenus());
             } else {
                 refreshContextMenus();
             }

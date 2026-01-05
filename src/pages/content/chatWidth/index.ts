@@ -2,6 +2,10 @@
  * Adjusts the chat area width based on user settings (stored as viewport %)
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
+
 const STYLE_ID = 'gemini-voyager-chat-width';
 const DEFAULT_PERCENT = 70;
 const MIN_PERCENT = 30;
@@ -165,43 +169,42 @@ function removeStyles() {
 export function startChatWidthAdjuster() {
   let currentWidthPercent = DEFAULT_PERCENT;
   let enabled = true;
-  let observer: MutationObserver | null = null;
+  let observerUnsubscribe: (() => void) | null = null;
+  let unsubscribeEnabled: (() => void) | null = null;
+  let unsubscribeWidth: (() => void) | null = null;
 
   const setupObserver = () => {
-    if (observer) return;
+    if (observerUnsubscribe) return;
 
     let debounceTimer: number | null = null;
-    observer = new MutationObserver(() => {
-      if (!enabled) return;
-      if (debounceTimer !== null) {
-        clearTimeout(debounceTimer);
-      }
-      debounceTimer = window.setTimeout(() => {
-        applyWidth(currentWidthPercent);
-        debounceTimer = null;
-      }, 200);
-    });
-
-    const main = document.querySelector('main');
-    if (main) {
-      observer.observe(main, {
-        childList: true,
-        subtree: true,
-      });
-    }
+    observerUnsubscribe = sharedObserverPool.register(
+      'main',
+      () => {
+        if (!enabled) return;
+        if (debounceTimer !== null) {
+          clearTimeout(debounceTimer);
+        }
+        debounceTimer = window.setTimeout(() => {
+          applyWidth(currentWidthPercent);
+          debounceTimer = null;
+        }, 200);
+      },
+      { childList: true, subtree: true },
+      () => document.querySelector('main')
+    );
   };
 
   // Load initial settings
-  chrome.storage?.sync?.get(
+  void storageFacade.getSettings(
     {
-      geminiChatWidth: DEFAULT_PERCENT,
-      gvChatWidthEnabled: true
+      [StorageKeys.CHAT_WIDTH]: DEFAULT_PERCENT,
+      [StorageKeys.CHAT_WIDTH_ENABLED]: true
     },
-    (res: { geminiChatWidth?: number; gvChatWidthEnabled?: boolean }) => {
-      enabled = res?.gvChatWidthEnabled !== false;
+    (res: { [StorageKeys.CHAT_WIDTH]?: number; [StorageKeys.CHAT_WIDTH_ENABLED]?: boolean }) => {
+      enabled = res?.[StorageKeys.CHAT_WIDTH_ENABLED] !== false;
 
       if (enabled) {
-        const storedWidth = res?.geminiChatWidth;
+        const storedWidth = res?.[StorageKeys.CHAT_WIDTH];
         const normalized = normalizePercent(storedWidth ?? DEFAULT_PERCENT, DEFAULT_PERCENT);
         currentWidthPercent = normalized;
         applyWidth(currentWidthPercent);
@@ -209,7 +212,7 @@ export function startChatWidthAdjuster() {
 
         if (typeof storedWidth === 'number' && storedWidth !== normalized) {
           try {
-            chrome.storage?.sync?.set({ geminiChatWidth: normalized });
+            void storageFacade.setSetting(StorageKeys.CHAT_WIDTH, normalized).catch(() => {});
           } catch (e) {
             console.warn('[Gemini Voyager] Failed to migrate chat width to %:', e);
           }
@@ -219,54 +222,54 @@ export function startChatWidthAdjuster() {
   );
 
   // Listen for changes from storage
-  const storageChangeHandler = (
-    changes: { [key: string]: chrome.storage.StorageChange },
-    area: string
-  ) => {
-    if (area !== 'sync') return;
-
-    // Handle enable/disable toggle
-    if ('gvChatWidthEnabled' in changes) {
-      enabled = changes.gvChatWidthEnabled.newValue !== false;
+  unsubscribeEnabled = storageFacade.subscribe(
+    StorageKeys.CHAT_WIDTH_ENABLED,
+    (change, area) => {
+      if (area !== 'sync') return;
+      enabled = change.newValue !== false;
       if (enabled) {
         applyWidth(currentWidthPercent);
         setupObserver();
       } else {
         removeStyles();
-        if (observer) {
-          observer.disconnect();
-          observer = null;
+        if (observerUnsubscribe) {
+          observerUnsubscribe();
+          observerUnsubscribe = null;
         }
       }
-    }
-
-    // Handle width change
-    if (changes.geminiChatWidth && enabled) {
-      const newWidth = changes.geminiChatWidth.newValue;
+    },
+    { area: 'sync' }
+  );
+  unsubscribeWidth = storageFacade.subscribe(
+    StorageKeys.CHAT_WIDTH,
+    (change, area) => {
+      if (area !== 'sync' || !enabled) return;
+      const newWidth = change.newValue;
       if (typeof newWidth === 'number') {
         const normalized = normalizePercent(newWidth, DEFAULT_PERCENT);
         currentWidthPercent = normalized;
         applyWidth(currentWidthPercent);
 
         if (normalized !== newWidth) {
-          try {
-            chrome.storage?.sync?.set({ geminiChatWidth: normalized });
-          } catch (e) {
+          void storageFacade.setSetting(StorageKeys.CHAT_WIDTH, normalized).catch((e) => {
             console.warn('[Gemini Voyager] Failed to migrate chat width to % on change:', e);
-          }
+          });
         }
       }
-    }
-  };
-
-  chrome.storage?.onChanged?.addListener(storageChangeHandler);
+    },
+    { area: 'sync' }
+  );
 
   // Clean up on unload to prevent memory leaks
   window.addEventListener('beforeunload', () => {
-    if (observer) observer.disconnect();
+    if (observerUnsubscribe) observerUnsubscribe();
+    observerUnsubscribe = null;
     removeStyles();
     try {
-      chrome.storage?.onChanged?.removeListener(storageChangeHandler);
+      unsubscribeEnabled?.();
+      unsubscribeWidth?.();
+      unsubscribeEnabled = null;
+      unsubscribeWidth = null;
     } catch (e) {
       console.error('[Gemini Voyager] Failed to remove storage listener on unload:', e);
     }

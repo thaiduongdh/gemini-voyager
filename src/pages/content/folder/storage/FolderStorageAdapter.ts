@@ -20,6 +20,8 @@ import type { FolderData } from '../types';
 
 import { isSafari } from '@/core/utils/browser';
 import { safariStorage } from '@/core/utils/safariStorage';
+import { storageFacade } from '@/core/services/StorageFacade';
+import type { StorageKey } from '@/core/types/common';
 
 /**
  * Unified storage interface for folder data
@@ -31,13 +33,13 @@ export interface IFolderStorageAdapter {
    * Used for adapter-specific setup like data migration
    * @param key Storage key
    */
-  init(key: string): Promise<void>;
+  init(key: StorageKey): Promise<void>;
 
   /**
    * Load folder data from storage
    * @returns FolderData or null if no data exists
    */
-  loadData(key: string): Promise<FolderData | null>;
+  loadData(key: StorageKey): Promise<FolderData | null>;
 
   /**
    * Save folder data to storage
@@ -45,13 +47,13 @@ export interface IFolderStorageAdapter {
    * @param data Folder data to save
    * @returns true if save succeeded
    */
-  saveData(key: string, data: FolderData): Promise<boolean>;
+  saveData(key: StorageKey, data: FolderData): Promise<boolean>;
 
   /**
    * Remove folder data from storage
    * @param key Storage key
    */
-  removeData(key: string): Promise<void>;
+  removeData(key: StorageKey): Promise<void>;
 
   /**
    * Get storage backend name for debugging
@@ -68,16 +70,16 @@ export class LocalStorageFolderAdapter implements IFolderStorageAdapter {
    * Initialize and migrate existing data to chrome.storage.local
    * This enables popup/sync to access folder data
    */
-  async init(key: string): Promise<void> {
+  async init(key: StorageKey): Promise<void> {
     try {
       // Check if we need to migrate localStorage data to chrome.storage.local
       const localData = localStorage.getItem(key);
       if (localData) {
-        const result = await chrome.storage.local.get(key);
+        const result = await storageFacade.getDataMap([key]);
         if (!result[key]) {
           // Migrate localStorage data to chrome.storage.local
           const data = JSON.parse(localData) as FolderData;
-          await chrome.storage.local.set({ [key]: data });
+          await storageFacade.setData(key, data);
           console.log('[LocalStorageFolderAdapter] Migrated folder data to chrome.storage.local');
         }
       }
@@ -86,10 +88,10 @@ export class LocalStorageFolderAdapter implements IFolderStorageAdapter {
     }
   }
 
-  async loadData(key: string): Promise<FolderData | null> {
+  async loadData(key: StorageKey): Promise<FolderData | null> {
     try {
       // First check chrome.storage.local (for synced data from popup/download)
-      const chromeResult = await chrome.storage.local.get(key);
+      const chromeResult = await storageFacade.getDataMap([key]);
       if (chromeResult[key]) {
         console.log('[LocalStorageFolderAdapter] Loaded data from chrome.storage.local');
         // Also sync to localStorage for consistency
@@ -109,7 +111,7 @@ export class LocalStorageFolderAdapter implements IFolderStorageAdapter {
     }
   }
 
-  async saveData(key: string, data: FolderData): Promise<boolean> {
+  async saveData(key: StorageKey, data: FolderData): Promise<boolean> {
     try {
       const dataString = JSON.stringify(data);
       localStorage.setItem(key, dataString);
@@ -122,7 +124,7 @@ export class LocalStorageFolderAdapter implements IFolderStorageAdapter {
 
       // Also mirror to chrome.storage.local for popup/sync access
       try {
-        await chrome.storage.local.set({ [key]: data });
+        await storageFacade.setData(key, data);
       } catch (storageError) {
         console.warn('[LocalStorageFolderAdapter] Failed to mirror to chrome.storage.local:', storageError);
       }
@@ -134,7 +136,7 @@ export class LocalStorageFolderAdapter implements IFolderStorageAdapter {
     }
   }
 
-  async removeData(key: string): Promise<void> {
+  async removeData(key: StorageKey): Promise<void> {
     try {
       localStorage.removeItem(key);
     } catch (error) {
@@ -162,11 +164,11 @@ export class SafariFolderAdapter implements IFolderStorageAdapter {
    * Initialize Safari adapter with data migration
    * Migrates data from localStorage to browser.storage.local (one-time)
    */
-  async init(key: string): Promise<void> {
+  async init(key: StorageKey): Promise<void> {
     await this.migrateFromLocalStorage(key);
   }
 
-  async loadData(key: string): Promise<FolderData | null> {
+  async loadData(key: StorageKey): Promise<FolderData | null> {
     try {
       const stored = await safariStorage.getItem(key);
       if (!stored) {
@@ -179,7 +181,7 @@ export class SafariFolderAdapter implements IFolderStorageAdapter {
     }
   }
 
-  async saveData(key: string, data: FolderData): Promise<boolean> {
+  async saveData(key: StorageKey, data: FolderData): Promise<boolean> {
     try {
       const dataString = JSON.stringify(data);
       await safariStorage.setItem(key, dataString);
@@ -197,7 +199,7 @@ export class SafariFolderAdapter implements IFolderStorageAdapter {
     }
   }
 
-  async removeData(key: string): Promise<void> {
+  async removeData(key: StorageKey): Promise<void> {
     try {
       await safariStorage.removeItem(key);
     } catch (error) {
@@ -213,7 +215,7 @@ export class SafariFolderAdapter implements IFolderStorageAdapter {
    * Migrate data from localStorage to browser.storage.local
    * Should be called once during initialization
    */
-  async migrateFromLocalStorage(key: string): Promise<boolean> {
+  async migrateFromLocalStorage(key: StorageKey): Promise<boolean> {
     try {
       return await safariStorage.migrateFromLocalStorage(key);
     } catch (error) {

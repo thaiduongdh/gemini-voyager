@@ -18,7 +18,9 @@ import type {
     PromptExportPayload,
 } from '@/core/types/sync';
 import { DEFAULT_SYNC_STATE } from '@/core/types/sync';
+import { StorageKeys } from '@/core/types/common';
 import { EXTENSION_VERSION } from '@/core/utils/version';
+import { storageFacade } from '@/core/services/StorageFacade';
 
 const FOLDERS_FILE_NAME = 'gemini-voyager-folders.json';
 const PROMPTS_FILE_NAME = 'gemini-voyager-prompts.json';
@@ -204,10 +206,12 @@ export class GoogleDriveSyncService {
 
     private async loadCachedToken(): Promise<void> {
         try {
-            const result = await chrome.storage.local.get(['gvAccessToken', 'gvTokenExpiry']);
-            if (result.gvAccessToken && result.gvTokenExpiry && (result.gvTokenExpiry as number) > Date.now()) {
-                this.accessToken = result.gvAccessToken as string;
-                this.tokenExpiry = result.gvTokenExpiry as number;
+            const result = await storageFacade.getDataMap([StorageKeys.SYNC_ACCESS_TOKEN, StorageKeys.SYNC_TOKEN_EXPIRY]);
+            const accessToken = result[StorageKeys.SYNC_ACCESS_TOKEN] as string | undefined;
+            const tokenExpiry = result[StorageKeys.SYNC_TOKEN_EXPIRY] as number | undefined;
+            if (accessToken && tokenExpiry && tokenExpiry > Date.now()) {
+                this.accessToken = accessToken;
+                this.tokenExpiry = tokenExpiry;
                 console.log('[GoogleDriveSyncService] Loaded cached token');
             }
         } catch (error) {
@@ -219,7 +223,10 @@ export class GoogleDriveSyncService {
         this.accessToken = token;
         this.tokenExpiry = Date.now() + (expiresIn * 1000) - 60000;
         try {
-            await chrome.storage.local.set({ gvAccessToken: token, gvTokenExpiry: this.tokenExpiry });
+            await storageFacade.setDataMap({
+                [StorageKeys.SYNC_ACCESS_TOKEN]: token,
+                [StorageKeys.SYNC_TOKEN_EXPIRY]: this.tokenExpiry,
+            });
         } catch (error) {
             console.error('[GoogleDriveSyncService] Failed to save token:', error);
         }
@@ -229,7 +236,7 @@ export class GoogleDriveSyncService {
         this.accessToken = null;
         this.tokenExpiry = 0;
         try {
-            await chrome.storage.local.remove(['gvAccessToken', 'gvTokenExpiry']);
+            await storageFacade.removeData([StorageKeys.SYNC_ACCESS_TOKEN, StorageKeys.SYNC_TOKEN_EXPIRY]);
         } catch (error) {
             console.error('[GoogleDriveSyncService] Failed to clear token:', error);
         }
@@ -391,11 +398,15 @@ export class GoogleDriveSyncService {
 
     private async loadState(): Promise<void> {
         try {
-            const result = await chrome.storage.local.get(['gvSyncMode', 'gvLastSyncTime', 'gvSyncError']);
+            const result = await storageFacade.getDataMap([
+                StorageKeys.SYNC_MODE,
+                StorageKeys.SYNC_LAST_TIME,
+                StorageKeys.SYNC_LAST_ERROR,
+            ]);
             this.state = {
-                mode: (result.gvSyncMode as SyncMode) || 'disabled',
-                lastSyncTime: (result.gvLastSyncTime as number) || null,
-                error: (result.gvSyncError as string) || null,
+                mode: (result[StorageKeys.SYNC_MODE] as SyncMode) || 'disabled',
+                lastSyncTime: (result[StorageKeys.SYNC_LAST_TIME] as number) || null,
+                error: (result[StorageKeys.SYNC_LAST_ERROR] as string) || null,
                 isSyncing: false,
                 isAuthenticated: false,
             };
@@ -408,10 +419,10 @@ export class GoogleDriveSyncService {
 
     private async saveState(): Promise<void> {
         try {
-            await chrome.storage.local.set({
-                gvSyncMode: this.state.mode,
-                gvLastSyncTime: this.state.lastSyncTime,
-                gvSyncError: this.state.error,
+            await storageFacade.setDataMap({
+                [StorageKeys.SYNC_MODE]: this.state.mode,
+                [StorageKeys.SYNC_LAST_TIME]: this.state.lastSyncTime,
+                [StorageKeys.SYNC_LAST_ERROR]: this.state.error,
             });
         } catch (error) {
             console.error('[GoogleDriveSyncService] Failed to save state:', error);

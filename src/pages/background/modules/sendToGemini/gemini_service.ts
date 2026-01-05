@@ -12,6 +12,8 @@ import {
 import { appendDebugLog } from './logging';
 import { showTemporaryBadge } from './queue_service';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+
 let geminiAuthUser = DEFAULT_GEMINI_AUTH_USER;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
 const DEFAULT_VIDEO_PROMPT = 'Watch this video and summarize key points.';
@@ -130,7 +132,7 @@ function openTargetTab(
 export function handleGemini(url: string | null, prompt: string | null = null): void {
     showTemporaryBadge('GO', '#34a853');
 
-    chrome.storage.local.get(
+    void storageFacade.getDataMap(
         {
             [STORAGE_KEYS.appendInstruction]: true,
             [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB,
@@ -288,7 +290,7 @@ export async function handleGeminiImage({
         return;
     }
 
-    chrome.storage.local.get(
+    void storageFacade.getDataMap(
         { [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB, [STORAGE_KEYS.model]: DEFAULT_GEMINI_MODEL },
         (settings) => {
             const geminiUrl = getGeminiUrl();
@@ -365,7 +367,7 @@ export async function handleGeminiVideo({
     const filename = getFilenameFromUrl(videoUrl, fallbackExt);
     const promptToUse = prompt?.trim() || DEFAULT_VIDEO_PROMPT;
 
-    chrome.storage.local.get(
+    void storageFacade.getDataMap(
         { [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB, [STORAGE_KEYS.model]: DEFAULT_GEMINI_MODEL },
         (settings) => {
             const geminiUrl = getGeminiUrl();

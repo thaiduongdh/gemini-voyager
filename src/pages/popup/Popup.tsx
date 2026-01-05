@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import browser from 'webextension-polyfill';
-
 import { DarkModeToggle } from '../../components/DarkModeToggle';
 // import { LanguageSwitcher } from '../../components/LanguageSwitcher'; // Removed
 import { Button } from '../../components/ui/button';
@@ -26,6 +24,8 @@ import {
 } from './components/WebsiteLogos';
 import WidthSlider from './components/WidthSlider';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { StorageKeys } from '@/core/types/common';
 import { isSafari } from '@/core/utils/browser';
 import { compareVersions } from '@/core/utils/version';
 
@@ -75,8 +75,9 @@ const normalizeSidebarPx = (value: number) => {
   return clampSidebarPx(value);
 };
 
-const LATEST_VERSION_CACHE_KEY = 'gvLatestVersionCache';
+const LATEST_VERSION_CACHE_KEY = StorageKeys.LATEST_VERSION_CACHE;
 const LATEST_VERSION_MAX_AGE = 1000 * 60 * 60 * 6; // 6 hours
+const isDevBuild = import.meta.env.DEV;
 
 const normalizeVersionString = (version?: string | null): string | null => {
   if (!version) return null;
@@ -130,11 +131,11 @@ export default function Popup() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const format = e.target.value as 'latex' | 'unicodemath' | 'no-dollar';
       setFormulaCopyFormat(format);
-      try {
-        chrome.storage?.sync?.set({ gvFormulaCopyFormat: format });
-      } catch (err) {
-        console.error('[Gemini Voyager] Failed to save formula copy format:', err);
-      }
+      void storageFacade
+        .setSetting(StorageKeys.FORMULA_COPY_FORMAT, format)
+        .catch((err) => {
+          console.error('[Gemini Voyager] Failed to save formula copy format:', err);
+        });
     },
     []
   );
@@ -142,26 +143,32 @@ export default function Popup() {
   // Helper function to apply settings to storage
   const apply = useCallback((settings: SettingsUpdate) => {
     const payload: any = {};
-    if (settings.mode) payload.geminiTimelineScrollMode = settings.mode;
-    if (typeof settings.hideContainer === 'boolean') payload.geminiTimelineHideContainer = settings.hideContainer;
-    if (typeof settings.draggableTimeline === 'boolean') payload.geminiTimelineDraggable = settings.draggableTimeline;
-    if (typeof settings.folderEnabled === 'boolean') payload.geminiFolderEnabled = settings.folderEnabled;
-    if (typeof settings.hideArchivedConversations === 'boolean') payload.geminiFolderHideArchivedConversations = settings.hideArchivedConversations;
-    if (settings.resetPosition) payload.geminiTimelinePosition = null;
-    if (settings.customWebsites) payload.gvPromptCustomWebsites = settings.customWebsites;
-    if (typeof settings.watermarkRemoverEnabled === 'boolean') payload.geminiWatermarkRemoverEnabled = settings.watermarkRemoverEnabled;
-    if (typeof settings.chatWidthEnabled === 'boolean') payload.gvChatWidthEnabled = settings.chatWidthEnabled;
-    if (typeof settings.promptTriggerEnabled === 'boolean') payload.gvPromptTriggerEnabled = settings.promptTriggerEnabled;
-    if (typeof settings.conversationStatsEnabled === 'boolean') payload.gvConversationStatsEnabled = settings.conversationStatsEnabled;
-    if (typeof settings.messageTimestampsEnabled === 'boolean') payload.gvMessageTimestampsEnabled = settings.messageTimestampsEnabled;
-    try {
-      chrome.storage?.sync?.set(payload);
-    } catch { }
+    if (settings.mode) payload[StorageKeys.TIMELINE_SCROLL_MODE] = settings.mode;
+    if (typeof settings.hideContainer === 'boolean') payload[StorageKeys.TIMELINE_HIDE_CONTAINER] = settings.hideContainer;
+    if (typeof settings.draggableTimeline === 'boolean') payload[StorageKeys.TIMELINE_DRAGGABLE] = settings.draggableTimeline;
+    if (typeof settings.folderEnabled === 'boolean') payload[StorageKeys.FOLDER_ENABLED] = settings.folderEnabled;
+    if (typeof settings.hideArchivedConversations === 'boolean') payload[StorageKeys.FOLDER_HIDE_ARCHIVED] = settings.hideArchivedConversations;
+    if (settings.resetPosition) payload[StorageKeys.TIMELINE_POSITION] = null;
+    if (settings.customWebsites) payload[StorageKeys.PROMPT_CUSTOM_WEBSITES] = settings.customWebsites;
+    if (typeof settings.watermarkRemoverEnabled === 'boolean') {
+      payload[StorageKeys.WATERMARK_REMOVER_ENABLED] = settings.watermarkRemoverEnabled;
+    }
+    if (typeof settings.chatWidthEnabled === 'boolean') payload[StorageKeys.CHAT_WIDTH_ENABLED] = settings.chatWidthEnabled;
+    if (typeof settings.promptTriggerEnabled === 'boolean') {
+      payload[StorageKeys.PROMPT_TRIGGER_ENABLED] = settings.promptTriggerEnabled;
+    }
+    if (typeof settings.conversationStatsEnabled === 'boolean') {
+      payload[StorageKeys.CONVERSATION_STATS_ENABLED] = settings.conversationStatsEnabled;
+    }
+    if (typeof settings.messageTimestampsEnabled === 'boolean') {
+      payload[StorageKeys.MESSAGE_TIMESTAMPS_ENABLED] = settings.messageTimestampsEnabled;
+    }
+    void storageFacade.setSettings(payload).catch(() => {});
   }, []);
 
   // Width adjuster for chat width
   const chatWidthAdjuster = useWidthAdjuster({
-    storageKey: 'geminiChatWidth',
+    storageKey: StorageKeys.CHAT_WIDTH,
     defaultValue: CHAT_PERCENT.defaultValue,
     normalize: (v) =>
       normalizePercent(v, CHAT_PERCENT.defaultValue, CHAT_PERCENT.min, CHAT_PERCENT.max, CHAT_PERCENT.legacyBaselinePx),
@@ -174,14 +181,14 @@ export default function Popup() {
         CHAT_PERCENT.legacyBaselinePx
       );
       try {
-        chrome.storage?.sync?.set({ geminiChatWidth: normalized });
-      } catch { }
+        void storageFacade.setSetting(StorageKeys.CHAT_WIDTH, normalized).catch(() => {});
+      } catch {}
     }, []),
   });
 
   // Width adjuster for edit input width
   const editInputWidthAdjuster = useWidthAdjuster({
-    storageKey: 'geminiEditInputWidth',
+    storageKey: StorageKeys.EDIT_INPUT_WIDTH,
     defaultValue: EDIT_PERCENT.defaultValue,
     normalize: (v) =>
       normalizePercent(v, EDIT_PERCENT.defaultValue, EDIT_PERCENT.min, EDIT_PERCENT.max, EDIT_PERCENT.legacyBaselinePx),
@@ -194,21 +201,21 @@ export default function Popup() {
         EDIT_PERCENT.legacyBaselinePx
       );
       try {
-        chrome.storage?.sync?.set({ geminiEditInputWidth: normalized });
-      } catch { }
+        void storageFacade.setSetting(StorageKeys.EDIT_INPUT_WIDTH, normalized).catch(() => {});
+      } catch {}
     }, []),
   });
 
   // Width adjuster for sidebar width (px-based UI, stored as px; content will migrate >max to %)
   const sidebarWidthAdjuster = useWidthAdjuster({
-    storageKey: 'geminiSidebarWidth',
+    storageKey: StorageKeys.SIDEBAR_WIDTH,
     defaultValue: SIDEBAR_PX.defaultValue,
     normalize: normalizeSidebarPx,
     onApply: useCallback((widthPx: number) => {
       const clamped = normalizeSidebarPx(widthPx);
       try {
-        chrome.storage?.sync?.set({ geminiSidebarWidth: clamped });
-      } catch { }
+        void storageFacade.setSetting(StorageKeys.SIDEBAR_WIDTH, clamped).catch(() => {});
+      } catch {}
     }, []),
   });
 
@@ -230,7 +237,7 @@ export default function Popup() {
       if (!extVersion) return;
 
       try {
-        const cache = await browser.storage.local.get(LATEST_VERSION_CACHE_KEY);
+        const cache = await storageFacade.getDataMap([LATEST_VERSION_CACHE_KEY]);
         const cached = cache?.[LATEST_VERSION_CACHE_KEY] as { version?: string; fetchedAt?: number } | undefined;
         const now = Date.now();
 
@@ -256,7 +263,7 @@ export default function Popup() {
 
           if (candidate) {
             latest = candidate;
-            await browser.storage.local.set({
+            await storageFacade.setDataMap({
               [LATEST_VERSION_CACHE_KEY]: { version: candidate, fetchedAt: now },
             });
           }
@@ -281,39 +288,40 @@ export default function Popup() {
 
   useEffect(() => {
     try {
-      chrome.storage?.sync?.get(
+      storageFacade.getSettings(
         {
-          geminiTimelineScrollMode: 'flow',
-          geminiTimelineHideContainer: false,
-          geminiTimelineDraggable: false,
-          geminiFolderEnabled: true,
-          geminiFolderHideArchivedConversations: false,
-          gvPromptCustomWebsites: [],
-          gvFormulaCopyFormat: 'latex',
-          geminiWatermarkRemoverEnabled: true,
-          gvChatWidthEnabled: true,
-          gvPromptTriggerEnabled: true,
-          gvConversationStatsEnabled: true,
-          gvMessageTimestampsEnabled: true,
+          [StorageKeys.TIMELINE_SCROLL_MODE]: 'flow',
+          [StorageKeys.TIMELINE_HIDE_CONTAINER]: false,
+          [StorageKeys.TIMELINE_DRAGGABLE]: false,
+          [StorageKeys.FOLDER_ENABLED]: true,
+          [StorageKeys.FOLDER_HIDE_ARCHIVED]: false,
+          [StorageKeys.PROMPT_CUSTOM_WEBSITES]: [],
+          [StorageKeys.FORMULA_COPY_FORMAT]: 'latex',
+          [StorageKeys.WATERMARK_REMOVER_ENABLED]: true,
+          [StorageKeys.CHAT_WIDTH_ENABLED]: true,
+          [StorageKeys.PROMPT_TRIGGER_ENABLED]: true,
+          [StorageKeys.CONVERSATION_STATS_ENABLED]: true,
+          [StorageKeys.MESSAGE_TIMESTAMPS_ENABLED]: true,
         },
         (res) => {
-          const m = res?.geminiTimelineScrollMode as ScrollMode;
+          const m = res?.[StorageKeys.TIMELINE_SCROLL_MODE] as ScrollMode;
           if (m === 'jump' || m === 'flow') setMode(m);
-          const format = res?.gvFormulaCopyFormat as 'latex' | 'unicodemath' | 'no-dollar';
+          const format = res?.[StorageKeys.FORMULA_COPY_FORMAT] as 'latex' | 'unicodemath' | 'no-dollar';
           if (format === 'latex' || format === 'unicodemath' || format === 'no-dollar') setFormulaCopyFormat(format);
-          setHideContainer(!!res?.geminiTimelineHideContainer);
-          setDraggableTimeline(!!res?.geminiTimelineDraggable);
-          setFolderEnabled(res?.geminiFolderEnabled !== false);
-          setHideArchivedConversations(!!res?.geminiFolderHideArchivedConversations);
-          setCustomWebsites(Array.isArray(res?.gvPromptCustomWebsites) ? res.gvPromptCustomWebsites : []);
-          setWatermarkRemoverEnabled(res?.geminiWatermarkRemoverEnabled !== false);
-          setChatWidthEnabled(res?.gvChatWidthEnabled !== false);
-          setPromptTriggerEnabled(res?.gvPromptTriggerEnabled !== false);
-          setConversationStatsEnabled(res?.gvConversationStatsEnabled !== false);
-          setMessageTimestampsEnabled(res?.gvMessageTimestampsEnabled !== false);
+          setHideContainer(!!res?.[StorageKeys.TIMELINE_HIDE_CONTAINER]);
+          setDraggableTimeline(!!res?.[StorageKeys.TIMELINE_DRAGGABLE]);
+          setFolderEnabled(res?.[StorageKeys.FOLDER_ENABLED] !== false);
+          setHideArchivedConversations(!!res?.[StorageKeys.FOLDER_HIDE_ARCHIVED]);
+          const storedCustomWebsites = res?.[StorageKeys.PROMPT_CUSTOM_WEBSITES];
+          setCustomWebsites(Array.isArray(storedCustomWebsites) ? storedCustomWebsites : []);
+          setWatermarkRemoverEnabled(res?.[StorageKeys.WATERMARK_REMOVER_ENABLED] !== false);
+          setChatWidthEnabled(res?.[StorageKeys.CHAT_WIDTH_ENABLED] !== false);
+          setPromptTriggerEnabled(res?.[StorageKeys.PROMPT_TRIGGER_ENABLED] !== false);
+          setConversationStatsEnabled(res?.[StorageKeys.CONVERSATION_STATS_ENABLED] !== false);
+          setMessageTimestampsEnabled(res?.[StorageKeys.MESSAGE_TIMESTAMPS_ENABLED] !== false);
         }
       );
-    } catch { }
+    } catch {}
   }, []);
 
   // Validate and normalize URL
@@ -399,9 +407,16 @@ export default function Popup() {
     <div className="w-[360px] bg-background text-foreground">
       {/* Header */}
       <div className="border-b border-border/50 px-5 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">
-          {t('extName')}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-foreground">
+            {t('extName')}
+          </h1>
+          {isDevBuild && (
+            <span className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+              DEV
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <DarkModeToggle />
         </div>

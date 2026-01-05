@@ -1,5 +1,7 @@
 import { TimelineManager } from './manager';
 
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+
 function isGeminiConversationRoute(pathname = location.pathname): boolean {
   // Support account-scoped routes like /u/1/app or /u/0/gem/
   // Matches: "/app", "/gem/", "/u/<num>/app", "/u/<num>/gem/"
@@ -11,7 +13,6 @@ let currentUrl = location.href;
 let currentPathAndSearch = location.pathname + location.search;
 let routeCheckIntervalId: number | null = null;
 let routeListenersAttached = false;
-let activeObservers: MutationObserver[] = [];
 let cleanupHandlers: (() => void)[] = [];
 
 function initializeTimeline(): void {
@@ -110,16 +111,6 @@ function attachRouteListenersOnce(): void {
  * Disconnects all observers, clears intervals, and removes event listeners
  */
 function cleanup(): void {
-  // Disconnect all active MutationObservers
-  activeObservers.forEach((observer) => {
-    try {
-      observer.disconnect();
-    } catch (e) {
-      console.error('[Gemini Voyager] Failed to disconnect observer during cleanup:', e);
-    }
-  });
-  activeObservers = [];
-
   // Clear the route check interval
   if (routeCheckIntervalId !== null) {
     clearInterval(routeCheckIntervalId);
@@ -146,30 +137,30 @@ export function startTimeline(): void {
     initializeTimeline();
   }
 
-  const initialObserver = new MutationObserver(() => {
-    if (document.body) {
+  let unsubscribeInitial: (() => void) | null = null;
+  unsubscribeInitial = sharedObserverPool.register(
+    'body',
+    () => {
+      if (!document.body) return;
       if (isGeminiConversationRoute()) initializeTimeline();
 
-      // Disconnect and remove from tracking
-      initialObserver.disconnect();
-      activeObservers = activeObservers.filter((obs) => obs !== initialObserver);
+      unsubscribeInitial?.();
+      unsubscribeInitial = null;
 
-      // Create page observer for URL changes
-      const pageObserver = new MutationObserver(handleUrlChange);
-      pageObserver.observe(document.body, { childList: true, subtree: true });
-      activeObservers.push(pageObserver);
+      const unsubscribePage = sharedObserverPool.register(
+        'body',
+        () => handleUrlChange(),
+        { childList: true, subtree: true },
+        () => document.body
+      );
+      cleanupHandlers.push(() => unsubscribePage());
 
       attachRouteListenersOnce();
-    }
-  });
-
-  // Track observer for cleanup
-  activeObservers.push(initialObserver);
-
-  initialObserver.observe(document.documentElement || document.body, {
-    childList: true,
-    subtree: true,
-  });
+    },
+    { childList: true, subtree: true },
+    () => document.documentElement || document.body
+  );
+  cleanupHandlers.push(() => unsubscribeInitial?.());
 
   // Setup cleanup on page unload
   window.addEventListener('beforeunload', cleanup, { once: true });

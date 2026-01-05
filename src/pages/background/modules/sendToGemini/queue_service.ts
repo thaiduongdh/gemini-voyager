@@ -4,6 +4,8 @@ import { normalizeQueueItem, normalizeQueue, QUEUE_KINDS } from '../../../../sha
 import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 import { appendDebugLog } from './logging';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+
 let badgeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function setBadge(count: number): void {
@@ -27,7 +29,7 @@ export function showTemporaryBadge(text: string, color = '#4caf50'): void {
 }
 
 export function updateBadge(): void {
-    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+    void storageFacade.getDataMap([STORAGE_KEYS.queue], (result) => {
         const queue = normalizeQueue(result[STORAGE_KEYS.queue]);
         setBadge(queue.length);
     });
@@ -43,11 +45,11 @@ export function addQueueItem(item: string | { url: string; kind?: string }, sour
         });
         return;
     }
-    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+    void storageFacade.getDataMap([STORAGE_KEYS.queue], (result) => {
         const queue = normalizeQueue(result[STORAGE_KEYS.queue] || []);
         if (queue.some((entry) => entry.url === normalized.url)) return;
         queue.push(normalized);
-        chrome.storage.local.set({ [STORAGE_KEYS.queue]: queue }, updateBadge);
+        void storageFacade.setData(STORAGE_KEYS.queue, queue).then(updateBadge);
         appendDebugLog({
             level: 'info',
             message: 'Added item to queue via context menu',

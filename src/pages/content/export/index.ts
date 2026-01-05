@@ -3,6 +3,10 @@ import { ConversationExportService } from '../../../features/export/services/Con
 import type { ConversationMetadata } from '../../../features/export/types/export';
 import { ExportDialog } from '../../../features/export/ui/ExportDialog';
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
+
 function hashString(input: string): string {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < input.length; i++) {
@@ -16,15 +20,27 @@ function waitForElement(selector: string, timeoutMs: number = 6000): Promise<Ele
   return new Promise((resolve) => {
     const el = document.querySelector(selector);
     if (el) return resolve(el);
-    const obs = new MutationObserver(() => {
-      const found = document.querySelector(selector);
-      if (found) {
-        try { obs.disconnect(); } catch { }
+    let timeoutId: number | null = null;
+    const unsubscribe = sharedObserverPool.register(
+      selector,
+      () => {
+        const found = document.querySelector(selector);
+        if (!found) return;
+        unsubscribe();
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         resolve(found);
-      }
-    });
-    try { obs.observe(document.body, { childList: true, subtree: true }); } catch { }
-    if (timeoutMs > 0) setTimeout(() => { try { obs.disconnect(); } catch { }; resolve(null); }, timeoutMs);
+      },
+      { childList: true, subtree: true }
+    );
+    if (timeoutMs > 0) {
+      timeoutId = window.setTimeout(() => {
+        try { unsubscribe(); } catch { }
+        resolve(null);
+      }, timeoutMs);
+    }
   });
 }
 
@@ -441,28 +457,28 @@ export async function startExportButton(): Promise<void> {
   btn.setAttribute('aria-label', title);
 
   // listen for runtime language changes
-  const storageChangeHandler = (changes: any, area: string) => {
-    if (area !== 'sync') return;
-    if (changes?.language) {
-      const next = normalizeLang(changes.language.newValue);
-      const ttl = (dict[next]?.['exportChatJson'] ?? dict.en?.['exportChatJson'] ?? 'Export chat history (JSON)');
-      btn.title = ttl;
-      btn.setAttribute('aria-label', ttl);
-    }
-  };
-
-  try {
-    chrome.storage?.onChanged?.addListener(storageChangeHandler);
-
-    // Cleanup listener on page unload to prevent memory leaks
-    window.addEventListener('beforeunload', () => {
-      try {
-        chrome.storage?.onChanged?.removeListener(storageChangeHandler);
-      } catch (e) {
-        console.error('[Gemini Voyager] Failed to remove storage listener on unload:', e);
+  const unsubscribe = storageFacade.subscribe(
+    StorageKeys.LANGUAGE,
+    (change, area) => {
+      if (area !== 'sync') return;
+      if (typeof change.newValue === 'string') {
+        const next = normalizeLang(change.newValue);
+        const ttl = (dict[next]?.['exportChatJson'] ?? dict.en?.['exportChatJson'] ?? 'Export chat history (JSON)');
+        btn.title = ttl;
+        btn.setAttribute('aria-label', ttl);
       }
-    }, { once: true });
-  } catch { }
+    },
+    { area: 'sync' }
+  );
+
+  // Cleanup listener on page unload to prevent memory leaks
+  window.addEventListener('beforeunload', () => {
+    try {
+      unsubscribe();
+    } catch (e) {
+      console.error('[Gemini Voyager] Failed to remove storage listener on unload:', e);
+    }
+  }, { once: true });
 
   btn.addEventListener('click', (ev) => {
     // Stop parent navigation, but allow this handler to run

@@ -2,6 +2,10 @@
  * Conversation Statistics - Shows message counts in the current conversation
  */
 
+import { storageFacade } from '@/core/services/StorageFacade';
+import { sharedObserverPool } from '@/core/services/SharedObserverPool';
+import { StorageKeys } from '@/core/types/common';
+
 const STATS_CONTAINER_ID = 'gv-conversation-stats';
 const POLL_INTERVAL = 2000;
 
@@ -126,7 +130,8 @@ export function startConversationStats(): { destroy: () => void } {
     // Check if enabled in storage (default: true)
     let enabled = true;
     let intervalId: number | null = null;
-    let observer: MutationObserver | null = null;
+    let observerUnsubscribe: (() => void) | null = null;
+    let unsubscribeStorage: (() => void) | null = null;
 
     const init = () => {
         // Initial update
@@ -136,45 +141,50 @@ export function startConversationStats(): { destroy: () => void } {
         intervalId = window.setInterval(updateStatsDisplay, POLL_INTERVAL);
 
         // Also observe for DOM changes
-        const main = document.querySelector('main');
-        if (main) {
-            observer = new MutationObserver(() => {
+        observerUnsubscribe = sharedObserverPool.register(
+            ['main', '.conversation-container', 'chat-window'],
+            () => {
                 updateStatsDisplay();
-            });
-            observer.observe(main, { childList: true, subtree: true });
-        }
+            },
+            { childList: true, subtree: true },
+            () => document.querySelector('main')
+        );
     };
 
-    chrome.storage?.sync?.get({ gvConversationStatsEnabled: true }, (res) => {
-        enabled = res?.gvConversationStatsEnabled !== false;
+    storageFacade.getSettings({ [StorageKeys.CONVERSATION_STATS_ENABLED]: true }, (res) => {
+        enabled = res?.[StorageKeys.CONVERSATION_STATS_ENABLED] !== false;
         if (enabled) {
             init();
         }
     });
 
     // Listen for setting changes
-    const storageListener = (changes: any, area: string) => {
-        if (area === 'sync' && 'gvConversationStatsEnabled' in changes) {
-            enabled = changes.gvConversationStatsEnabled.newValue !== false;
+    unsubscribeStorage = storageFacade.subscribe(
+        StorageKeys.CONVERSATION_STATS_ENABLED,
+        (change, area) => {
+            if (area !== 'sync') return;
+            enabled = change.newValue !== false;
             if (enabled) {
                 init();
             } else {
                 // Cleanup
                 if (intervalId) clearInterval(intervalId);
-                if (observer) observer.disconnect();
+                if (observerUnsubscribe) {
+                    observerUnsubscribe();
+                    observerUnsubscribe = null;
+                }
                 const container = document.getElementById(STATS_CONTAINER_ID);
                 if (container) container.remove();
             }
-        }
-    };
-
-    chrome.storage?.onChanged?.addListener(storageListener);
+        },
+        { area: 'sync' }
+    );
 
     return {
         destroy: () => {
             if (intervalId) clearInterval(intervalId);
-            if (observer) observer.disconnect();
-            chrome.storage?.onChanged?.removeListener(storageListener);
+            if (observerUnsubscribe) observerUnsubscribe();
+            unsubscribeStorage?.();
             const container = document.getElementById(STATS_CONTAINER_ID);
             if (container) container.remove();
         },
