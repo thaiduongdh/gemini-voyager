@@ -1,9 +1,8 @@
 import enMessages from '@locales/en/messages.json';
-import zhMessages from '@locales/zh/messages.json';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import browser from 'webextension-polyfill';
 
-type Language = 'en' | 'zh';
+type Language = 'en';
 
 interface LanguageContextType {
   language: Language;
@@ -14,7 +13,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const normalizeLang = (lang: string | undefined): Language => {
-  return (lang && lang.toLowerCase().startsWith('zh')) ? 'zh' : 'en';
+  return 'en';
 };
 
 const extract = (raw: any): Record<string, string> => {
@@ -30,7 +29,6 @@ const extract = (raw: any): Record<string, string> => {
 
 const dictionaries: Record<Language, Record<string, string>> = {
   en: extract(enMessages as any),
-  zh: extract(zhMessages as any),
 };
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

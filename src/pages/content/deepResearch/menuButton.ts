@@ -39,10 +39,9 @@ function waitForElement(selector: string, timeout: number = 5000): Promise<Eleme
 /**
  * Load i18n dictionaries
  */
-async function loadDictionaries(): Promise<Record<'en' | 'zh', Record<string, string>>> {
+async function loadDictionaries(): Promise<Record<'en', Record<string, string>>> {
     try {
         const enRaw: any = await import(/* @vite-ignore */ '../../../locales/en/messages.json');
-        const zhRaw: any = await import(/* @vite-ignore */ '../../../locales/zh/messages.json');
 
         const extract = (raw: any): Record<string, string> => {
             const out: Record<string, string> = {};
@@ -55,32 +54,18 @@ async function loadDictionaries(): Promise<Record<'en' | 'zh', Record<string, st
             return out;
         };
 
-        return { en: extract(enRaw), zh: extract(zhRaw) } as any;
+        return { en: extract(enRaw) };
     } catch (error) {
         console.error('[Gemini Voyager] Error loading dictionaries:', error);
-        return { en: {}, zh: {} } as any;
+        return { en: {} };
     }
 }
 
 /**
  * Get user language preference
  */
-async function getLanguage(): Promise<'en' | 'zh'> {
-    try {
-        const stored = await new Promise<any>((resolve) => {
-            try {
-                (window as any).chrome?.storage?.sync?.get?.('language', resolve);
-            } catch {
-                resolve({});
-            }
-        });
-
-        const lang = typeof stored?.language === 'string' ? stored.language : undefined;
-        const normalized = lang && lang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
-        return normalized;
-    } catch {
-        return 'en';
-    }
+async function getLanguage(): Promise<'en'> {
+    return 'en';
 }
 
 /**

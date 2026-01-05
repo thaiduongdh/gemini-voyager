@@ -1,0 +1,1158 @@
+﻿node.exe : 2026-01-05T14:31:38.309Z vite:config 
+config file loaded in 736.02ms
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-01 
+   -05T14:3...ded in 736.02ms:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-01-05T14:31:38.313Z vite:env loading env files: 
+[
+  'C:/Users/thaid/Source/gemini-voyager/.env',
+  'C:/Users/thaid/Source/gemini-voyager/.env.local',
+  'C:/Users/thaid/Source/gemini-voyager/.env.producti
+on',
+  'C:/Users/thaid/Source/gemini-voyager/.env.producti
+on.local'
+]
+2026-01-05T14:31:38.313Z vite:env env files loaded 
+in 0.69ms
+2026-01-05T14:31:38.314Z vite:env using resolved 
+env: {}
+2026-01-05T14:31:38.377Z vite:config using resolved 
+config: {
+  plugins: [
+    'vite:build-metadata',
+    'vite:watch-package-data',
+    'alias',
+    '@tailwindcss/vite:scan',
+    '@tailwindcss/vite:generate:build',
+    'vite-tsconfig-paths',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'crx-i18n',
+    'crx:content-scripts',
+    'crx:dynamic-content-scripts-loader',
+    'crx:manifest-init',
+    'crx:manifest-loader',
+    'crx:stub-input',
+    'crx:print',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'vite:react-virtual-preamble',
+    'strip-dev-icons',
+    'crx:optionsProvider',
+    'crx:dynamic-content-scripts-build',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:build-html',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:force-amd-wrap-require',
+    'vite:force-systemjs-wrap-complete',
+    'vite:prepare-out-dir',
+    'commonjs',
+    'vite:data-uri',
+    'vite:rollup-options-plugins',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'crx:background-loader-file',
+    'crx:web-accessible-resources',
+    'crx:content-scripts-css',
+    'vite:build-import-analysis',
+    'vite:esbuild-transpile',
+    'vite:terser',
+    'vite:license',
+    'vite:manifest',
+    'vite:ssr-manifest',
+    'vite:reporter',
+    'vite:load-fallback',
+    'crx:manifest-post'
+  ],
+  publicDir: 
+'C:/Users/thaid/Source/gemini-voyager/public',
+  build: {
+    target: [ 'chrome107', 'edge107', 'firefox104', 
+'safari16' ],
+    polyfillModulePreload: true,
+    modulePreload: { polyfill: true },
+    outDir: 'C:\\Users\\thaid\\Source\\gemini-voyager
+\\dist_chrome',
+    assetsDir: 'assets',
+    assetsInlineLimit: 4096,
+    sourcemap: false,
+    terserOptions: {},
+    rollupOptions: {
+      onwarn: [Function: onwarn],
+      preserveEntrySignatures: 'exports-only'
+    },
+    commonjsOptions: { include: [ /node_modules/ ], 
+extensions: [ '.js', '.cjs' ] },
+    dynamicImportVarsOptions: { warnOnError: true, 
+exclude: [ /node_modules/ ] },
+    write: true,
+    emptyOutDir: true,
+    copyPublicDir: true,
+    license: false,
+    manifest: true,
+    lib: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 500,
+    watch: null,
+    cssCodeSplit: true,
+    minify: 'esbuild',
+    ssr: false,
+    emitAssets: true,
+    createEnvironment: [Function: createEnvironment],
+    cssTarget: [ 'chrome107', 'edge107', 
+'firefox104', 'safari16' ],
+    cssMinify: true
+  },
+  configFile: 'C:/Users/thaid/Source/gemini-voyager/v
+ite.config.chrome.ts',
+  esbuild: {
+    jsxDev: false,
+    charset: 'utf8',
+    legalComments: 'none',
+    jsx: 'automatic',
+    jsxImportSource: undefined
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime',
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime',
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime',
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ],
+    exclude: [],
+    needsInterop: [],
+    extensions: [],
+    disabled: undefined,
+    holdUntilCrawlEnd: true,
+    force: false,
+    noDiscovery: false,
+    esbuildOptions: { preserveSymlinks: false, jsx: 
+'automatic' }
+  },
+  environments: {
+    client: {
+      define: undefined,
+      resolve: {
+        externalConditions: [ 'node', 'module-sync' 
+],
+        extensions: [
+          '.mjs',  '.js',
+          '.mts',  '.ts',
+          '.jsx',  '.tsx',
+          '.json'
+        ],
+        dedupe: [],
+        noExternal: [],
+        external: [],
+        preserveSymlinks: false,
+        alias: [
+          {
+            find: /^\/?@vite\/env/,
+            replacement: '/@fs/C:/Users/thaid/Source/
+gemini-voyager/node_modules/vite/dist/client/env.mjs'
+          },
+          {
+            find: /^\/?@vite\/client/,
+            replacement: '/@fs/C:/Users/thaid/Source/
+gemini-voyager/node_modules/vite/dist/client/client.m
+js'
+          }
+        ],
+        mainFields: [ 'browser', 'module', 
+'jsnext:main', 'jsnext' ],
+        conditions: [ 'module', 'browser', 
+'development|production' ],
+        builtins: []
+      },
+      keepProcessEnv: false,
+      consumer: 'client',
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          'react/jsx-dev-runtime',
+          'react/jsx-runtime',
+          'react',
+          'react-dom',
+          'react/jsx-dev-runtime',
+          'react/jsx-runtime',
+          'react',
+          'react-dom',
+          'react/jsx-dev-runtime',
+          'react/jsx-runtime',
+          'react',
+          'react-dom',
+          'react/jsx-dev-runtime',
+          'react/jsx-runtime'
+        ],
+        exclude: [],
+        needsInterop: [],
+        extensions: [],
+        disabled: undefined,
+        holdUntilCrawlEnd: true,
+        force: false,
+        noDiscovery: false,
+        esbuildOptions: { preserveSymlinks: false, 
+jsx: 'automatic' }
+      },
+      dev: {
+        warmup: [],
+        sourcemap: { js: true },
+        sourcemapIgnoreList: [Function: 
+isInNodeModules],
+        preTransformRequests: true,
+        createEnvironment: [Function: 
+defaultCreateClientDevEnvironment],
+        recoverable: true,
+        moduleRunnerTransform: false
+      },
+      build: {
+        target: [ 'chrome107', 'edge107', 
+'firefox104', 'safari16' ],
+        polyfillModulePreload: true,
+        modulePreload: { polyfill: true },
+        outDir: 'C:\\Users\\thaid\\Source\\gemini-voy
+ager\\dist_chrome',
+        assetsDir: 'assets',
+        assetsInlineLimit: 4096,
+        sourcemap: false,
+        terserOptions: {},
+        rollupOptions: {
+          onwarn: [Function: onwarn],
+          preserveEntrySignatures: 'exports-only'
+        },
+        commonjsOptions: { include: [ /node_modules/ 
+], extensions: [ '.js', '.cjs' ] },
+        dynamicImportVarsOptions: { warnOnError: 
+true, exclude: [ /node_modules/ ] },
+        write: true,
+        emptyOutDir: true,
+        copyPublicDir: true,
+        license: false,
+        manifest: true,
+        lib: false,
+        ssrManifest: false,
+        ssrEmitAssets: false,
+        reportCompressedSize: true,
+        chunkSizeWarningLimit: 500,
+        watch: null,
+        cssCodeSplit: true,
+        minify: 'esbuild',
+        ssr: false,
+        emitAssets: true,
+        createEnvironment: [Function: 
+createEnvironment],
+        cssTarget: [ 'chrome107', 'edge107', 
+'firefox104', 'safari16' ],
+        cssMinify: true
+      },
+      plugins: [
+        {
+          name: 'vite:build-metadata',
+          renderChunk: [AsyncFunction: renderChunk]
+        },
+        {
+          name: 'vite:watch-package-data',
+          buildStart: [Function: buildStart],
+          buildEnd: [Function: buildEnd],
+          watchChange: [Function: watchChange]
+        },
+        {
+          name: 'alias',
+          buildStart: [AsyncFunction: buildStart],
+          resolveId: [Function: resolveId]
+        },
+        {
+          name: '@tailwindcss/vite:scan',
+          enforce: 'pre',
+          configureServer: [Function: 
+configureServer],
+          configResolved: [AsyncFunction: 
+configResolved]
+        },
+        {
+          name: '@tailwindcss/vite:generate:build',
+          apply: 'build',
+          enforce: 'pre',
+          transform: {
+            filter: {
+              id: {
+                exclude: [
+                  /\/\.vite\//,
+                  
+/[?&](?:worker|sharedworker|raw|url)\b/,
+                  /\?commonjs-proxy/
+                ],
+                include: [
+                  /\.css(?:\?.*)?$/,
+                  /&lang\.css/,
+                  /[?&]index\=\d+\.css$/
+                ]
+              }
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite-tsconfig-paths',
+          enforce: 'pre',
+          configResolved: [AsyncFunction: 
+configResolved],
+          resolveId: [AsyncFunction: resolveId]
+        },
+        {
+          name: 'vite:react-babel',
+          enforce: 'pre',
+          config: [Function: config],
+          configResolved: [Function: configResolved],
+          options: [Function: options]
+        },
+        {
+          name: 'vite:react-refresh',
+          enforce: 'pre',
+          config: [Function: config],
+          resolveId: {
+            filter: { id: /^\/@react\-refresh$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: /^\/@react\-refresh$/ },
+            handler: [Function: handler]
+          },
+          transformIndexHtml: [Function: 
+transformIndexHtml]
+        },
+        {
+          name: 'crx-i18n',
+          enforce: 'pre',
+          buildStart: { order: 'post', handler: 
+[Function: handler] }
+        },
+        {
+          name: 'crx:content-scripts',
+          apply: 'build',
+          enforce: 'pre',
+          config: [Function: config],
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'crx:dynamic-content-scripts-loader',
+          enforce: 'pre',
+          configResolved: [Function: configResolved],
+          configureServer: [Function: 
+configureServer],
+          resolveId: [AsyncFunction: resolveId],
+          load: [AsyncFunction: load]
+        },
+        {
+          name: 'crx:manifest-init',
+          enforce: 'pre',
+          config: [AsyncFunction: config],
+          buildStart: [Function: buildStart]
+        },
+        {
+          name: 'crx:manifest-loader',
+          enforce: 'pre',
+          buildStart: [Function: buildStart],
+          resolveId: [Function: resolveId],
+          load: [Function: load]
+        },
+        {
+          name: 'crx:stub-input',
+          enforce: 'pre',
+          options: [Function: options],
+          resolveId: [Function: resolveId],
+          load: [Function: load],
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'crx:print',
+          enforce: 'pre',
+          configResolved: [Function: configResolved],
+          configureServer: [Function: 
+configureServer]
+        },
+        {
+          name: 'vite:modulepreload-polyfill',
+          resolveId: {
+            filter: { id: 
+/^vite\/modulepreload\-polyfill$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: 
+/^ vite\/modulepreload\-polyfill\.js$/ },
+            handler: [Function: handler]
+          }
+        },
+        {
+          name: 'vite:resolve',
+          resolveId: {
+            filter: { id: { exclude: 
+/^(?:\0|\/?virtual:)/ } },
+            handler: [AsyncFunction: handler]
+          },
+          load: {
+            filter: {
+              id: [
+                /^__vite\-browser\-external/,
+                /^__vite\-optional\-peer\-dep/
+              ]
+            },
+            handler: [Function: handler]
+          }
+        },
+        {
+          name: 'vite:html-inline-proxy',
+          resolveId: {
+            filter: { id: /[?&]html-proxy\b/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: /[?&]html-proxy\b/ },
+            handler: [Function: handler]
+          }
+        },
+        {
+          name: 'vite:css',
+          buildStart: [Function: buildStart],
+          buildEnd: [Function: buildEnd],
+          load: {
+            filter: {
+              id: /\.(css|less|sass|scss|styl|stylus|
+pcss|postcss|sss)(?:$|\?)/
+            },
+            handler: [AsyncFunction: handler]
+          },
+          transform: {
+            filter: {
+              id: {
+                include: /\.(css|less|sass|scss|styl|
+stylus|pcss|postcss|sss)(?:$|\?)/,
+                exclude: [
+                  /[?&]commonjs-proxy/,
+                  
+/[?&](?:worker|sharedworker|raw|url)\b/
+                ]
+              }
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite:esbuild',
+          configureServer: [Function: 
+configureServer],
+          transform: [AsyncFunction: transform]
+        },
+        {
+          name: 'vite:json',
+          transform: {
+            filter: {
+              id: {
+                include: 
+/\.json(?:$|\?)(?!commonjs-(?:proxy|external))/,
+                exclude: 
+/[?&](?:worker|sharedworker|raw|url)\b/
+              }
+            },
+            handler: [Function: handler]
+          }
+        },
+        {
+          name: 'vite:wasm-helper',
+          resolveId: {
+            filter: { id: 
+/^ vite\/wasm\-helper\.js$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: {
+              id: [
+                /^ vite\/wasm\-helper\.js$/,
+                /(?<![?#].*)\.wasm\?init/
+              ]
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite:worker',
+          buildStart: [Function: buildStart],
+          load: {
+            filter: { id: 
+/(?:\?|&)(worker|sharedworker)(?:&|$)/ },
+            handler: [AsyncFunction: handler]
+          },
+          transform: {
+            filter: { id: 
+/(?:\?|&)worker_file&type=(\w+)(?:&|$)/ },
+            handler: [AsyncFunction: handler]
+          },
+          renderChunk: [Function: renderChunk],
+          generateBundle: [Function: generateBundle],
+          watchChange: [Function: watchChange]
+        },
+        {
+          name: 'vite:asset',
+          perEnvironmentStartEndDuringDev: true,
+          buildStart: [Function: buildStart],
+          resolveId: { handler: [Function: handler] 
+},
+          load: {
+            filter: { id: { exclude: /^\0/ } },
+            handler: [AsyncFunction: handler]
+          },
+          renderChunk: [Function: renderChunk],
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'vite:react-virtual-preamble',
+          resolveId: {
+            order: 'pre',
+            filter: { id: 
+/^@vitejs\/plugin\-react\/preamble$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: 
+/^ @vitejs\/plugin\-react\/preamble$/ },
+            handler: [Function: handler]
+          }
+        },
+        {
+          name: 'strip-dev-icons',
+          resolveId: [Function: resolveId],
+          renderStart: [Function: renderStart]
+        },
+        {
+          name: 'crx:optionsProvider',
+          api: {
+            crx: {
+              options: {
+                manifest: {
+                  manifest_version: 3,
+                  name: '__MSG_extName__',
+                  description: 
+'__MSG_extDescription__',
+                  version: '1.0.5',
+                  key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCA
+Q8AMIIBCgKCAQEA8pi3aQ7jFvKKpNl4WFyahflS0NaRsq3a/HNQ9e
+QkphA4OwFIkir8kJRg4H4xL8KqtZvG8+N7+UfaGsnc0OqhU/hY2Fh
+l0TMngAGiSiKIXKzX+9Z3nhb0GiTWFBp/GyrQ7KcatrA2Lb+Okn44
+HzJPSo/uQA3ifjXd8CIBnJexO1PfALPqWqSUDqcO88DnM6a66xx5K
+g7y82HYXkj03ipNlk48QJdWub/d+OWXpNiq7ze1z5mfBDhVhYEdck
+E6QWUh4aqs3arc76YLIYA2BlpLLMXi7zWlBL9ulCZMRMogki3dKYz
+IWEyBWHlWwYsbKpXM0Rg1CsqPi2iS9ZzSI8K2WQIDAQAB',
+                  action: {
+                    default_popup: 
+'src/pages/popup/index.html',
+                    default_icon: { '32': 
+'icon-32.png' }
+                  },
+                  options_ui: {
+                    page: 
+'src/pages/options/index.html',
+                    open_in_tab: true
+                  },
+                  icons: { '128': 'icon-128.png' },
+                  permissions: [ 'storage', 
+'identity' ],
+                  oauth2: {
+                    client_id: '462948120910-vvunu0k3
+b4vi37u23mqnh77mbgdjcg78.apps.googleusercontent.com',
+                    scopes: [ 
+'https://www.googleapis.com/auth/drive.file' ]
+                  },
+                  host_permissions: [
+                    
+'https://*.googleusercontent.com/*',
+                    'https://lh3.google.com/*',
+                    'https://*.ggpht.com/*',
+                    '<all_urls>'
+                  ],
+                  content_security_policy: {
+                    extension_pages: "script-src 
+'self'; object-src 'self'; worker-src 'self'"
+                  },
+                  background: {
+                    service_worker: 
+'src/pages/background/index.ts',
+                    type: 'module'
+                  },
+                  content_scripts: [ { matches: 
+[Array], js: [Array], css: [Array] } ],
+                  web_accessible_resources: [ { 
+resources: [Array], matches: [Array] } ],
+                  default_locale: 'en'
+                },
+                browser: 'chrome',
+                contentScripts: { injectCss: true }
+              }
+            }
+          }
+        },
+        {
+          name: 'crx:dynamic-content-scripts-build',
+          apply: 'build',
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'vite:wasm-fallback',
+          load: { filter: { id: /\.wasm$/ }, 
+handler: [Function: handler] }
+        },
+        {
+          name: 'vite:define',
+          transform: { handler: [AsyncFunction: 
+handler] }
+        },
+        {
+          name: 'vite:css-post',
+          renderStart: [Function: renderStart],
+          transform: {
+            filter: {
+              id: {
+                include: /\.(css|less|sass|scss|styl|
+stylus|pcss|postcss|sss)(?:$|\?)/,
+                exclude: [
+                  /[?&]commonjs-proxy/,
+                  
+/[?&](?:worker|sharedworker|raw|url)\b/
+                ]
+              }
+            },
+            handler: [AsyncFunction: handler]
+          },
+          renderChunk: [AsyncFunction: renderChunk],
+          augmentChunkHash: [Function: 
+augmentChunkHash],
+          generateBundle: [AsyncFunction: 
+generateBundle]
+        },
+        {
+          name: 'vite:build-html',
+          transform: {
+            filter: { id: /\.html$/ },
+            handler: [AsyncFunction: handler]
+          },
+          generateBundle: [AsyncFunction: 
+generateBundle]
+        },
+        {
+          name: 'vite:worker-import-meta-url',
+          applyToEnvironment: [Function: 
+applyToEnvironment],
+          transform: {
+            filter: {
+              code: /new\s+(?:Worker|SharedWorker)\s*
+\(\s*new\s+URL.+?import\.meta\.url/s
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite:asset-import-meta-url',
+          applyToEnvironment: [Function: 
+applyToEnvironment],
+          transform: {
+            filter: {
+              id: {
+                exclude: [
+                  /^ vite\/preload\-helper\.js$/,
+                  /^C:\\Users\\thaid\\Source\\gemini\
+-voyager\\node_modules\\vite\\dist\\client\\client\.m
+js$/
+                ]
+              },
+              code: /new\s+URL.+import\.meta\.url/s
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite:force-amd-wrap-require',
+          renderChunk: [Function: renderChunk]
+        },
+        {
+          name: 'vite:force-systemjs-wrap-complete',
+          renderChunk: [Function: renderChunk]
+        },
+        {
+          name: 'vite:prepare-out-dir',
+          options: [Function: options],
+          renderStart: { order: 'pre', handler: 
+[Function: handler] }
+        },
+        {
+          name: 'commonjs',
+          version: '29.0.0',
+          options: [Function: options],
+          buildStart: [Function: buildStart],
+          buildEnd: [Function: buildEnd],
+          load: [AsyncFunction: load],
+          shouldTransformCachedModule: [Function: 
+shouldTransformCachedModule],
+          transform: [Function: transform]
+        },
+        {
+          name: 'vite:data-uri',
+          buildStart: [Function: buildStart],
+          resolveId: [Function: resolveId],
+          load: [Function: load]
+        },
+        {
+          name: 'vite:dynamic-import-vars',
+          resolveId: {
+            filter: { id: 
+/^ vite\/dynamic\-import\-helper\.js$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: 
+/^ vite\/dynamic\-import\-helper\.js$/ },
+            handler: [Function: handler]
+          },
+          transform: {
+            filter: {
+              id: {
+                exclude: /^C:\\Users\\thaid\\Source\\
+gemini\-voyager\\node_modules\\vite\\dist\\client\\cl
+ient\.mjs$/
+              },
+              code: /\bimport\s*[(/]/
+            },
+            handler: [AsyncFunction: handler]
+          }
+        },
+        {
+          name: 'vite:import-glob',
+          buildStart: [Function: buildStart],
+          transform: {
+            filter: { code: 'import.meta.glob' },
+            handler: [AsyncFunction: handler]
+          },
+          hotUpdate: [Function: hotUpdate]
+        },
+        {
+          name: 'crx:background-loader-file',
+          enforce: 'post',
+          config: [AsyncFunction: config],
+          configResolved: [Function: configResolved],
+          renderCrxManifest: [Function: 
+renderCrxManifest]
+        },
+        {
+          name: 'crx:web-accessible-resources',
+          apply: 'build',
+          enforce: 'post',
+          config: [AsyncFunction: config],
+          configResolved: [Function: configResolved],
+          renderCrxManifest: [AsyncFunction: 
+renderCrxManifest]
+        },
+        {
+          name: 'crx:content-scripts-css',
+          enforce: 'post',
+          config: [AsyncFunction: config],
+          renderCrxManifest: [Function: 
+renderCrxManifest]
+        },
+        {
+          name: 'vite:build-import-analysis',
+          resolveId: {
+            filter: { id: 
+/^ vite\/preload\-helper\.js$/ },
+            handler: [Function: handler]
+          },
+          load: {
+            filter: { id: 
+/^ vite\/preload\-helper\.js$/ },
+            handler: [Function: handler]
+          },
+          transform: {
+            filter: { code: /import\s*\(/ },
+            handler: [AsyncFunction: handler]
+          },
+          renderChunk: [Function: renderChunk],
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'vite:esbuild-transpile',
+          applyToEnvironment: [Function: 
+applyToEnvironment],
+          renderChunk: [AsyncFunction: renderChunk]
+        },
+        {
+          name: 'vite:terser',
+          applyToEnvironment: [Function: 
+applyToEnvironment],
+          renderChunk: [AsyncFunction: renderChunk],
+          closeBundle: [Function: closeBundle]
+        },
+        {
+          name: 'vite:license',
+          generateBundle: [AsyncFunction: 
+generateBundle]
+        },
+        {
+          name: 'vite:manifest',
+          perEnvironmentStartEndDuringDev: true,
+          applyToEnvironment: [Function: 
+applyToEnvironment],
+          buildStart: [Function: buildStart],
+          generateBundle: [Function: generateBundle]
+        },
+        {
+          name: 'vite:reporter',
+          sharedDuringBuild: true,
+          perEnvironmentStartEndDuringDev: true,
+          transform: [Function: transform],
+          buildStart: [Function: buildStart],
+          buildEnd: [Function: buildEnd],
+          renderStart: [Function: renderStart],
+          renderChunk: [Function: renderChunk],
+          generateBundle: [Function: generateBundle],
+          writeBundle: [AsyncFunction: writeBundle]
+        },
+        {
+          name: 'vite:load-fallback',
+          load: { handler: [AsyncFunction: handler] }
+        },
+        {
+          name: 'crx:manifest-post',
+          enforce: 'post',
+          configResolved: [Function: configResolved],
+          transform: [AsyncFunction: transform],
+          generateBundle: [AsyncFunction: 
+generateBundle]
+        }
+      ]
+    }
+  },
+  resolve: {
+    externalConditions: [ 'node', 'module-sync' ],
+    extensions: [
+      '.mjs',  '.js',
+      '.mts',  '.ts',
+      '.jsx',  '.tsx',
+      '.json'
+    ],
+    dedupe: [],
+    noExternal: [],
+    external: [],
+    preserveSymlinks: false,
+    alias: [
+      {
+        find: /^\/?@vite\/env/,
+        replacement: '/@fs/C:/Users/thaid/Source/gemi
+ni-voyager/node_modules/vite/dist/client/env.mjs'
+      },
+      {
+        find: /^\/?@vite\/client/,
+        replacement: '/@fs/C:/Users/thaid/Source/gemi
+ni-voyager/node_modules/vite/dist/client/client.mjs'
+      }
+    ],
+    mainFields: [ 'browser', 'module', 
+'jsnext:main', 'jsnext' ],
+    conditions: [ 'module', 'browser', 
+'development|production' ],
+    builtins: []
+  },
+  configFileDependencies: [
+    'C:/Users/thaid/Source/gemini-voyager/custom-vite
+-plugins.ts',
+    'C:/Users/thaid/Source/gemini-voyager/manifest.de
+v.json',
+    
+'C:/Users/thaid/Source/gemini-voyager/manifest.json',
+    
+'C:/Users/thaid/Source/gemini-voyager/package.json',
+    'C:/Users/thaid/Source/gemini-voyager/vite.config
+.base.ts',
+    'C:/Users/thaid/Source/gemini-voyager/vite.config
+.chrome.ts'
+  ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: 'vite.config.chrome.ts',
+    configLoader: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    build: {}
+  },
+  root: 'C:/Users/thaid/Source/gemini-voyager',
+  base: '/',
+  decodedBase: '/',
+[36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+  rawBase: '/',
+  cacheDir: 'C:/Users/thaid/Source/gemini-voyager/nod
+e_modules/.vite',
+  command: 'build',
+  mode: 'production',
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: true,
+  css: {
+    transformer: 'postcss',
+    preprocessorMaxWorkers: true,
+    devSourcemap: false
+  },
+  json: { namedExports: true, stringify: 'auto' },
+  server: {
+    port: 5173,
+    strictPort: false,
+    host: undefined,
+    allowedHosts: [],
+    https: undefined,
+    open: false,
+    proxy: undefined,
+    cors: {
+      origin: /^https?:\/\/(?:(?:[^:]+\.)?localhost|1
+27\.0\.0\.1|\[::1\])(?::\d+)?$/
+    },
+    headers: {},
+    warmup: { clientFiles: [], ssrFiles: [] },
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      deny: [ '.env', '.env.*', '*.{crt,pem}', 
+'**/.git/**' ],
+      allow: [ 
+'C:/Users/thaid/Source/gemini-voyager' ]
+    },
+    preTransformRequests: true,
+    perEnvironmentStartEndDuringDev: false,
+    perEnvironmentWatchChangeDuringDev: false,
+    sourcemapIgnoreList: [Function: isInNodeModules]
+  },
+  builder: undefined,
+  preview: {
+    port: 4173,
+    strictPort: false,
+    host: undefined,
+    allowedHosts: [],
+    https: undefined,
+    open: false,
+    proxy: undefined,
+    cors: {
+      origin: /^https?:\/\/(?:(?:[^:]+\.)?localhost|1
+27\.0\.0\.1|\[::1\])(?::\d+)?$/
+    },
+    headers: {}
+  },
+  envDir: 'C:/Users/thaid/Source/gemini-voyager',
+  env: { BASE_URL: '/', MODE: 'production', DEV: 
+false, PROD: true },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(1) {
+    'fnpd_C:/Users/thaid/Source/gemini-voyager' => {
+      dir: 'C:/Users/thaid/Source/gemini-voyager',
+      data: {
+        name: 'gemini-utils',
+        version: '1.0.5',
+        description: 'Utility tools for Gemini: 
+timeline, folders, prompts, export, width controls.',
+        license: 'MIT',
+        author: '',
+        repository: {
+          type: 'git',
+          url: 
+'https://github.com/Nagi-ovo/gemini-voyager.git'
+        },
+        scripts: {
+          build: 'vite build --config 
+vite.config.chrome.ts',
+          'build:chrome': 'vite build --config 
+vite.config.chrome.ts',
+          'build:firefox': 'vite build --config 
+vite.config.firefox.ts',
+          'build:safari': 'vite build --config 
+vite.config.safari.ts',
+          'build:all': 'bun run build:chrome && bun 
+run build:firefox && bun run build:safari',
+          dev: 'nodemon --config 
+nodemon.chrome.json',
+          'dev:chrome': 'nodemon --config 
+nodemon.chrome.json',
+          'dev:firefox': 'nodemon --config 
+nodemon.firefox.json',
+          'dev:safari': 'nodemon --config 
+nodemon.safari.json',
+          test: 'vitest run',
+          'test:ui': 'vitest --ui',
+          'test:coverage': 'vitest run --coverage',
+          'test:watch': 'vitest watch',
+          lint: 'eslint . --ext .ts,.tsx --fix',
+          format: 'prettier --write .',
+          typecheck: 'tsc --noEmit',
+          commitlint: 'commitlint --edit 
+$GIT_PARAMS',
+          'docs:dev': 'vitepress dev docs',
+          'docs:build': 'vitepress build docs',
+          'docs:preview': 'vitepress preview docs'
+        },
+        type: 'module',
+        dependencies: {
+          'class-variance-authority': '^0.7.1',
+          clsx: '^2.1.1',
+          dompurify: '^3',
+          jszip: '^3.10.1',
+          katex: '^0.16',
+          'lucide-react': '^0.553.0',
+          marked: '16.4.1',
+          'marked-katex-extension': '^4',
+          prettier: '^3.6.2',
+          react: '^19.1.0',
+          'react-dom': '^19.1.0',
+          'tailwind-merge': '^3.3.1',
+          'webextension-polyfill': '^0.12.0'
+        },
+        devDependencies: {
+          '@crxjs/vite-plugin': '2.2.1',
+          '@tailwindcss/vite': '^4.1.15',
+          '@types/chrome': '^0.1.24',
+          '@types/jsdom': '^27.0.0',
+          '@types/jszip': '^3.4.1',
+          '@types/node': '^24.9.0',
+          '@types/react': '^19.2.2',
+          '@types/react-dom': '^19.2.2',
+          '@types/webextension-polyfill': '^0.12.3',
+          '@typescript-eslint/eslint-plugin': 
+'8.46.2',
+          '@typescript-eslint/parser': '^8.46.2',
+          '@vitejs/plugin-react': '5.1.0',
+          '@vitest/coverage-v8': '^4.0.6',
+          '@vitest/ui': '^4.0.6',
+          eslint: '^9.38.0',
+          'eslint-config-prettier': '^10.1.8',
+          'eslint-plugin-import': '^2.32.0',
+          'eslint-plugin-jsx-a11y': '^6.10.2',
+          'eslint-plugin-react': '^7.37.5',
+          'eslint-plugin-react-hooks': '7.0.1',
+          'fs-extra': '^11.3.0',
+          jsdom: '^27.1.0',
+          nodemon: '^3.1.10',
+          tailwindcss: '^4.1.15',
+          'ts-node': '^10.9.2',
+          typescript: '^5.8.3',
+          vite: '^7.1.11',
+          'vite-tsconfig-paths': '^5.1.4',
+          vitepress: '^1.6.4',
+          vitest: '^4.0.6',
+          vue: '^3.5.24'
+        },
+        overrides: { rollup: '^4.24.0' }
+      },
+      hasSideEffects: [Function: hasSideEffects],
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  worker: { format: 'iife', plugins: '() => 
+plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: {
+    importGlobRestoreExtension: false,
+    renderBuiltUrl: undefined,
+    hmrPartialAccept: false
+  },
+  future: undefined,
+  ssr: {
+    target: 'node',
+    optimizeDeps: { esbuildOptions: { 
+preserveSymlinks: false } },
+    resolve: { conditions: undefined, 
+externalConditions: undefined }
+  },
+  dev: {
+    warmup: [],
+    sourcemap: { js: true },
+    sourcemapIgnoreList: [Function: isInNodeModules],
+    preTransformRequests: false,
+    createEnvironment: [Function: 
+defaultCreateDevEnvironment],
+    recoverable: false,
+    moduleRunnerTransform: false
+  },
+  webSocketToken: 'IZ4DjGMiKDM7',
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: 
+getSortedPluginHooks],
+  createResolver: [Function: createResolver],
+  fsDenyGlob: [Function: arrayMatcher],
+  safeModulePaths: Set(0) {},
+  [Symbol(vite:resolved-config)]: true
+}
+transforming...
+2026-01-05T14:31:38.682Z vite:resolve 
+[32m0.22ms[39m [36mtailwindcss[39m -> 
+[2mnull[22m
+[32mΓ£ô[39m 66 modules transformed.
+[31mΓ£ù[39m Build failed in 812ms
+[31merror during build:
+[31mCould not resolve 
+"../../../locales/zh/messages.json" from 
+"src/pages/content/deepResearch/menuButton.ts"[31m
+file: [36mC:/Users/thaid/Source/gemini-voyager/src/p
+ages/content/deepResearch/menuButton.ts[31m
+    at getRollupError (file:///C:/Users/thaid/Source/
+gemini-voyager/node_modules/rollup/dist/es/shared/par
+seAst.js:401:41)
+    at error (file:///C:/Users/thaid/Source/gemini-vo
+yager/node_modules/rollup/dist/es/shared/parseAst.js:
+397:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///
+C:/Users/thaid/Source/gemini-voyager/node_modules/rol
+lup/dist/es/shared/node-entry.js:21710:24)
+    at ModuleLoader.resolveDynamicImport (file:///C:/
+Users/thaid/Source/gemini-voyager/node_modules/rollup
+/dist/es/shared/node-entry.js:21770:58)
+    at async file:///C:/Users/thaid/Source/gemini-voy
+ager/node_modules/rollup/dist/es/shared/node-entry.js
+:21654:32[39m

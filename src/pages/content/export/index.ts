@@ -19,12 +19,12 @@ function waitForElement(selector: string, timeoutMs: number = 6000): Promise<Ele
     const obs = new MutationObserver(() => {
       const found = document.querySelector(selector);
       if (found) {
-        try { obs.disconnect(); } catch {}
+        try { obs.disconnect(); } catch { }
         resolve(found);
       }
     });
-    try { obs.observe(document.body, { childList: true, subtree: true }); } catch {}
-    if (timeoutMs > 0) setTimeout(() => { try { obs.disconnect(); } catch {}; resolve(null); }, timeoutMs);
+    try { obs.observe(document.body, { childList: true, subtree: true }); } catch { }
+    if (timeoutMs > 0) setTimeout(() => { try { obs.disconnect(); } catch { }; resolve(null); }, timeoutMs);
   });
 }
 
@@ -112,7 +112,7 @@ function ensureTurnId(el: Element, index: number): string {
   if (!id) {
     const basis = normalizeText(asEl.textContent || '') || `user-${index}`;
     id = `u-${index}-${hashString(basis)}`;
-    try { (asEl.dataset as any).turnId = id; } catch {}
+    try { (asEl.dataset as any).turnId = id; } catch { }
   }
   return id;
 }
@@ -139,7 +139,7 @@ function extractAssistantText(el: HTMLElement): string {
       const txt = normalizeText(raw);
       if (txt) return txt;
     }
-  } catch {}
+  } catch { }
 
   // Clone and remove reasoning toggles/labels before reading text (detached fallback)
   const clone = el.cloneNode(true) as HTMLElement;
@@ -166,7 +166,7 @@ function extractAssistantText(el: HTMLElement): string {
       const eln = n as HTMLElement;
       if (shouldDrop(eln)) eln.remove();
     });
-  } catch {}
+  } catch { }
   const text = normalizeText((clone.innerText || clone.textContent || ''));
   return text;
 }
@@ -265,7 +265,7 @@ function downloadJSON(data: any, filename: string): void {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => { try { document.body.removeChild(a); } catch {}; URL.revokeObjectURL(url); }, 0);
+  setTimeout(() => { try { document.body.removeChild(a); } catch { }; URL.revokeObjectURL(url); }, 0);
 }
 
 function buildExportPayload(pairs: ChatTurn[]) {
@@ -302,10 +302,9 @@ function formatFilename(): string {
   return `gemini-chat-${y}${m}${day}-${hh}${mm}${ss}.json`;
 }
 
-async function loadDictionaries(): Promise<Record<'en' | 'zh', Record<string, string>>> {
+async function loadDictionaries(): Promise<Record<'en', Record<string, string>>> {
   try {
     const enRaw: any = await import(/* @vite-ignore */ '../../../locales/en/messages.json');
-    const zhRaw: any = await import(/* @vite-ignore */ '../../../locales/zh/messages.json');
     const extract = (raw: any): Record<string, string> => {
       const out: Record<string, string> = {};
       if (raw && typeof raw === 'object') {
@@ -316,9 +315,9 @@ async function loadDictionaries(): Promise<Record<'en' | 'zh', Record<string, st
       }
       return out;
     };
-    return { en: extract(enRaw), zh: extract(zhRaw) } as any;
+    return { en: extract(enRaw) };
   } catch {
-    return { en: {}, zh: {} } as any;
+    return { en: {} };
   }
 }
 
@@ -338,7 +337,7 @@ function getConversationTitleForExport(): string {
       return activeFolderTitle.textContent.trim();
     }
   } catch (error) {
-    try { console.debug('[Export] Failed to get title from Folder Manager:', error); } catch {}
+    try { console.debug('[Export] Failed to get title from Folder Manager:', error); } catch { }
   }
 
   // Strategy 1b: Get from Gemini's native sidebar using the selected actions container
@@ -358,7 +357,7 @@ function getConversationTitleForExport(): string {
         '[Export] Failed to get title from native sidebar selected conversation:',
         error,
       );
-    } catch {}
+    } catch { }
   }
 
   // Strategy 2: Try to get from page title
@@ -394,26 +393,18 @@ function getConversationTitleForExport(): string {
       }
     }
   } catch (error) {
-    try { console.debug('[Export] Failed to get title from sidebar:', error); } catch {}
+    try { console.debug('[Export] Failed to get title from sidebar:', error); } catch { }
   }
 
   return 'Untitled Conversation';
 }
 
-function normalizeLang(lang: string | undefined): 'en' | 'zh' {
-  return lang && lang.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+function normalizeLang(lang: string | undefined): 'en' {
+  return 'en';
 }
 
-async function getLanguage(): Promise<'en' | 'zh'> {
-  try {
-    const stored = await new Promise<any>((resolve) => {
-      try { (window as any).chrome?.storage?.sync?.get?.('language', resolve); } catch { resolve({}); }
-    });
-    const v = typeof stored?.language === 'string' ? stored.language : undefined;
-    return normalizeLang(v || (navigator.language || 'en'));
-  } catch {
-    return 'en';
-  }
+async function getLanguage(): Promise<'en'> {
+  return 'en';
 }
 
 export async function startExportButton(): Promise<void> {
@@ -433,12 +424,12 @@ export async function startExportButton(): Promise<void> {
 
   // Swallow events on the button to avoid parent navigation (logo click -> /app)
   const swallow = (e: Event) => {
-    try { e.preventDefault(); } catch {}
-    try { e.stopPropagation(); } catch {}
+    try { e.preventDefault(); } catch { }
+    try { e.stopPropagation(); } catch { }
   };
   // Capture low-level press events to avoid parent logo navigation, but do NOT capture 'click'
   ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach((type) => {
-    try { btn.addEventListener(type, swallow, true); } catch {}
+    try { btn.addEventListener(type, swallow, true); } catch { }
   });
 
   // i18n setup for tooltip
@@ -471,7 +462,7 @@ export async function startExportButton(): Promise<void> {
         console.error('[Gemini Voyager] Failed to remove storage listener on unload:', e);
       }
     }, { once: true });
-  } catch {}
+  } catch { }
 
   btn.addEventListener('click', (ev) => {
     // Stop parent navigation, but allow this handler to run
@@ -480,12 +471,12 @@ export async function startExportButton(): Promise<void> {
       // Show export dialog instead of directly exporting
       showExportDialog(dict, lang);
     } catch (err) {
-      try { console.error('Gemini Voyager export failed', err); } catch {}
+      try { console.error('Gemini Voyager export failed', err); } catch { }
     }
   });
 }
 
-async function showExportDialog(dict: Record<'en' | 'zh', Record<string, string>>, lang: 'en' | 'zh'): Promise<void> {
+async function showExportDialog(dict: Record<'en', Record<string, string>>, lang: 'en'): Promise<void> {
   const t = (key: string) => dict[lang]?.[key] ?? dict.en?.[key] ?? key;
 
   // Collect conversation data BEFORE showing dialog to avoid page state changes
