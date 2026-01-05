@@ -1,0 +1,14 @@
+src/pages/background/modules/sendToGemini/chatgpt_service.ts(27,77): error TS2694: Namespace 'chrome.tabs' has no exported member 'TabChangeInfo'.
+src/pages/background/modules/sendToGemini/context_menus.ts(337,17): error TS2322: Type 'unknown' is not assignable to type 'boolean | null'.
+src/pages/background/modules/sendToGemini/queue_service.ts(31,24): error TS2339: Property 'length' does not exist on type '{}'.
+src/pages/content/modules/sendToGemini/floating_ui.ts(417,27): error TS2345: Argument of type '{}' is not assignable to parameter of type 'QueueItem[]'.
+  Type '{}' is missing the following properties from type 'QueueItem[]': length, pop, push, concat, and 35 more.
+src/pages/content/modules/sendToGemini/floating_ui.ts(424,27): error TS2345: Argument of type '{}' is not assignable to parameter of type 'QueueItem[]'.
+  Type '{}' is missing the following properties from type 'QueueItem[]': length, pop, push, concat, and 35 more.
+src/pages/content/modules/sendToGemini/floating_ui.ts(427,40): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'boolean'.
+src/pages/content/modules/sendToGemini/floating_ui.ts(470,23): error TS2339: Property 'length' does not exist on type '{}'.
+src/pages/content/modules/sendToGemini/floating_ui.ts(481,40): error TS2339: Property 'length' does not exist on type '{}'.
+src/pages/content/modules/sendToGemini/floating_ui.ts(588,31): error TS2345: Argument of type '{}' is not assignable to parameter of type 'QueueItem[]'.
+  Type '{}' is missing the following properties from type 'QueueItem[]': length, pop, push, concat, and 35 more.
+src/pages/popup/Popup.tsx(552,15): error TS2322: Type '{ label: string; value: number; min: number; max: number; step: number; padding: string; narrowLabel: string; wideLabel: string; onChange: (newWidth: number) => void; onChangeComplete: () => void; }' is not assignable to type 'IntrinsicAttributes & WidthSliderProps'.
+  Property 'padding' does not exist on type 'IntrinsicAttributes & WidthSliderProps'.

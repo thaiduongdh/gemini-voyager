@@ -14,6 +14,8 @@ interface WidthSliderProps {
   valueFormatter?: (value: number) => string;
   onChange: (value: number) => void;
   onChangeComplete?: (value: number) => void;
+  /** Optional custom padding class for the outer Card */
+  padding?: string;
 }
 
 /**
@@ -31,11 +33,12 @@ export default function WidthSlider({
   valueFormatter,
   onChange,
   onChangeComplete,
+  padding = 'p-4',
 }: WidthSliderProps) {
   const formatValue = valueFormatter ?? ((v: number) => `${v}%`);
 
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow">
+    <Card className={`${padding} hover:shadow-lg transition-shadow`}>
       <div className="flex items-center justify-between mb-3">
         <CardTitle className="text-xs uppercase">{label}</CardTitle>
         <span className="text-sm font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md shadow-sm">

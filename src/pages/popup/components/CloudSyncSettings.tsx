@@ -120,8 +120,8 @@ export function CloudSyncSettings() {
 
             // Get current folder and prompt data from chrome.storage.local first, fallback to localStorage
             // Note: localStorage in popup is isolated from content script localStorage on different origins
-            let folders = { folders: [], folderContents: {} };
-            let prompts: any[] = [];
+            let folders: { folders: unknown[]; folderContents: Record<string, unknown[]> } = { folders: [], folderContents: {} };
+            let prompts: unknown[] = [];
 
             try {
                 // Try chrome.storage.local first (used by Safari and for sync data)

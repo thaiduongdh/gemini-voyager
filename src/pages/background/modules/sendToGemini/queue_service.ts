@@ -27,7 +27,7 @@ export function showTemporaryBadge(text: string, color = '#4caf50'): void {
 
 export function updateBadge(): void {
     chrome.storage.local.get(['stg_videoQueue'], (result) => {
-        const queue = result.stg_videoQueue || [];
+        const queue = normalizeQueue(result.stg_videoQueue);
         setBadge(queue.length);
     });
 }

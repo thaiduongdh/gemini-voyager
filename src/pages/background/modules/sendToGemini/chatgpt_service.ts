@@ -24,7 +24,7 @@ export async function handleChatGPT(url: string): Promise<void> {
             if (!newTab?.id) return;
             const tabId = newTab.id;
 
-            const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+            const listener = (updatedTabId: number, changeInfo: { status?: string }) => {
                 if (updatedTabId === tabId && changeInfo.status === 'complete') {
                     chrome.scripting.executeScript(
                         {

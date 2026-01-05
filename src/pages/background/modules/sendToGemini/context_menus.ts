@@ -334,7 +334,7 @@ export function refreshContextMenus(): void {
                 }
 
                 menusInitialized = true;
-                lastMenuMode = stg_showAdvancedMenu;
+                lastMenuMode = Boolean(stg_showAdvancedMenu);
                 lastWorkflowMode = workflow;
                 contextMenuRefreshInProgress = false;
 
