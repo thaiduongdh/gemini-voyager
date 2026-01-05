@@ -113,6 +113,10 @@ function processMessages(): void {
             // Skip if already processed
             if (element.getAttribute(TIMESTAMP_ATTR)) return;
 
+            // Skip if this element is nested inside another message element we are tracking
+            const parentMessage = element.parentElement?.closest(selectors.join(','));
+            if (parentMessage) return;
+
             const msgId = getMessageId(element);
 
             // Record timestamp if new message

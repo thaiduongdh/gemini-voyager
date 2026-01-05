@@ -9,17 +9,17 @@
 *   **Chrome Only**: Remove Firefox/Safari build targets and code paths.
 *   **English Only**: Remove all localization logic (chinese, etc.). Default to English.
 *   **Manual Maintenance**: No upstream merges. Manual porting of features.
-*   **Token Counter**: Must be visible and functional.
-*   **Message Timestamps**: Show "just now" or relative time. No duplicates.
+*   **Token/Word Counter**: **MUST BE VISIBLE** and functional. (Critical: Fixed z-index but needs logic verification).
+*   **Message Timestamps**: Show "just now" or relative time. **NO DUPLICATES** (User reported duplication persists).
 *   **Export**: Support Markdown/JSON export. English only.
 *   **Folder Management**: Minimalist folder UI.
 *   **Custom Chat Width**: Option to toggle custom chat width vs original Gemini width.
-*   **Prompt Bubble**: Option to hide the floating prompt manager button.
+*   **Prompt Bubble**: Option to hide the floating prompt manager button. **MUST WORK** (User reported it does nothing).
 
 ## UI/UX Requirements
 *   **Popup**: Minimalist. No "New Version" banners (or tiny). No "Gemini Notice".
 *   **Scrollbars**: "Utilitarian" thin scrollbars everywhere.
-*   **Timeline**: "Checkpoint" system. Minimalist.
+*   **Timeline / Checkpoints**: **ULTRA-MINIMALIST**. Smaller dots, less obvious, transparent/minimal bar. Do not steal attention.
 *   **Deep Research**: Download button integration.
 
 ## Technical Constraints

@@ -313,16 +313,17 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
       // Fallback to enabled if storage check fails
     }
 
-    // Return early if trigger is disabled
-    if (!triggerEnabled) {
-      return { destroy: () => { } };
-    }
-
     // Prevent duplicate injection
     if (document.getElementById(ID.trigger)) return { destroy: () => { } };
 
     // Trigger button
     const trigger = createEl('button', 'gv-pm-trigger');
+    if (!triggerEnabled) {
+      trigger.classList.add('gv-hidden');
+    }
+
+
+    // Listener definition moved to after panel creation
     trigger.id = ID.trigger;
     trigger.setAttribute('aria-label', 'Prompt Manager');
     const img = document.createElement('img');
@@ -411,6 +412,22 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'false');
     document.body.appendChild(panel);
+
+    // Listen for storage changes to toggle visibility dynamically
+    const storageListener = (changes: any, area: string) => {
+      if (area === 'sync' && 'gvPromptTriggerEnabled' in changes) {
+        const enabled = changes.gvPromptTriggerEnabled.newValue !== false;
+        if (enabled) {
+          trigger.classList.remove('gv-hidden');
+          // Re-constrain position when showing
+          requestAnimationFrame(constrainTriggerPosition);
+        } else {
+          trigger.classList.add('gv-hidden');
+          if (open) closePanel();
+        }
+      }
+    };
+    chrome.storage.onChanged.addListener(storageListener);
 
     // Build panel DOM
     const header = createEl('div', 'gv-pm-header');
@@ -1292,6 +1309,7 @@ export async function startPromptManager(): Promise<{ destroy: () => void }> {
           trigger.remove();
           panel.remove();
           document.querySelectorAll('.gv-pm-confirm').forEach(el => el.remove());
+          chrome.storage.onChanged.removeListener(storageListener);
         } catch (e) {
           console.error('[PromptManager] Destroy error:', e);
         }

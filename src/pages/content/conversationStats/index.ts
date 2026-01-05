@@ -17,6 +17,8 @@ function getUserMessageSelectors(): string[] {
         '.user-query-container',
         '[data-message-author-role="user"]',
         'div[aria-label="User message"]',
+        'div[aria-label="Prompt"]',
+        '.user-message',
     ];
 }
 
@@ -26,6 +28,8 @@ function getModelResponseSelectors(): string[] {
         '.model-response',
         '[data-message-author-role="assistant"]',
         '[data-message-author-role="model"]',
+        '.model-message',
+        '.response-container',
     ];
 }
 
