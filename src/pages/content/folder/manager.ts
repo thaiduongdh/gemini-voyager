@@ -293,8 +293,13 @@ export class FolderManager {
     });
   }
 
-  private findRecentSection(): void {
+  private findRecentSection(retryCount = 0): void {
     if (!this.sidebarContainer) return;
+
+    if (retryCount > 30) {
+      this.debugWarn('Could not find Recent section - giving up after 30 attempts');
+      return;
+    }
 
     // Find conversations-list (Recent section) by looking for the conversations container
     // Try multiple selectors to find the Recent section
@@ -317,10 +322,10 @@ export class FolderManager {
     if (conversationsList) {
       this.recentSection = conversationsList as HTMLElement;
     } else {
-      this.debugWarn('Could not find Recent section - will retry');
+      this.debugWarn(`Could not find Recent section - will retry (attempt ${retryCount + 1}/30)`);
       // Retry after a delay
       setTimeout(() => {
-        this.findRecentSection();
+        this.findRecentSection(retryCount + 1);
         if (this.recentSection && !this.containerElement) {
           this.createFolderUI();
           this.makeConversationsDraggable();
