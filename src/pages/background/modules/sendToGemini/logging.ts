@@ -1,5 +1,6 @@
 
 import { DEBUG_LOG_LIMIT } from '../../../../shared/modules/sendToGemini/config';
+import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 
 interface LogEntry {
     level?: 'info' | 'error' | 'warn';
@@ -22,12 +23,13 @@ export function appendDebugLog(entry: LogEntry): void {
         meta: entry.meta || null,
     };
 
-    chrome.storage.local.get({ stg_debugLog: [] }, ({ stg_debugLog }) => {
-        const list: StoredLogEntry[] = Array.isArray(stg_debugLog) ? stg_debugLog : [];
+    chrome.storage.local.get({ [STORAGE_KEYS.debugLog]: [] }, (result) => {
+        const rawLog = result[STORAGE_KEYS.debugLog];
+        const list: StoredLogEntry[] = Array.isArray(rawLog) ? (rawLog as StoredLogEntry[]) : [];
         list.push(payload);
         if (list.length > DEBUG_LOG_LIMIT) {
             list.splice(0, list.length - DEBUG_LOG_LIMIT);
         }
-        chrome.storage.local.set({ stg_debugLog: list });
+        chrome.storage.local.set({ [STORAGE_KEYS.debugLog]: list });
     });
 }

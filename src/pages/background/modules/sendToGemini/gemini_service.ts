@@ -1,6 +1,7 @@
 
 import type { QueueItem, GeminiModel, TargetTab, VideoFetchResult } from '../../../../shared/modules/sendToGemini/types';
 import { detectContentType, isHttpUrl } from '../../../../shared/modules/sendToGemini/utils';
+import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 import {
     DEFAULT_GEMINI_AUTH_USER,
     DEFAULT_TARGET_TAB,
@@ -25,12 +26,8 @@ export function setGeminiAuthUserCache(value: string | number | null | undefined
 }
 
 export function loadGeminiAuthUser(): void {
-    chrome.storage.local.get(
-        { stg_geminiAuthUser: DEFAULT_GEMINI_AUTH_USER },
-        ({ stg_geminiAuthUser }) => {
-            setGeminiAuthUserCache(stg_geminiAuthUser as string | number | null | undefined);
-        }
-    );
+    // No longer stored separately, using default for now
+    setGeminiAuthUserCache(DEFAULT_GEMINI_AUTH_USER);
 }
 
 export function buildGeminiPromptForUrl(
@@ -135,29 +132,29 @@ export function handleGemini(url: string | null, prompt: string | null = null): 
 
     chrome.storage.local.get(
         {
-            stg_appendYoutubeInstruction: true,
-            stg_targetTab: DEFAULT_TARGET_TAB,
-            stg_geminiModel: DEFAULT_GEMINI_MODEL,
+            [STORAGE_KEYS.appendInstruction]: true,
+            [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB,
+            [STORAGE_KEYS.model]: DEFAULT_GEMINI_MODEL,
         },
         (settings) => {
             const geminiUrl = getGeminiUrl();
             const finalPrompt =
-                prompt || buildGeminiPromptForUrl(url || '', null, settings.stg_appendYoutubeInstruction as boolean);
+                prompt || buildGeminiPromptForUrl(url || '', null, settings[STORAGE_KEYS.appendInstruction] as boolean);
 
             appendDebugLog({
                 level: 'info',
                 message: 'Prompt constructed',
                 meta: {
                     url,
-                    appendSetting: settings.stg_appendYoutubeInstruction,
+                    appendSetting: settings[STORAGE_KEYS.appendInstruction],
                     promptLength: finalPrompt.length,
                     preview: finalPrompt,
-                    targetTab: settings.stg_targetTab,
-                    model: settings.stg_geminiModel,
+                    targetTab: settings[STORAGE_KEYS.targetTab],
+                    model: settings[STORAGE_KEYS.model],
                 },
             });
 
-            openTargetTab(geminiUrl, settings.stg_targetTab as TargetTab, (newTab) => {
+            openTargetTab(geminiUrl, settings[STORAGE_KEYS.targetTab] as TargetTab, (newTab) => {
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
@@ -173,7 +170,7 @@ export function handleGemini(url: string | null, prompt: string | null = null): 
                                     chrome.tabs.sendMessage(tabId, {
                                         action: 'prompt_gemini',
                                         prompt: finalPrompt,
-                                        model: settings.stg_geminiModel,
+                                        model: settings[STORAGE_KEYS.model],
                                     });
                                 }, 1000);
                             }
@@ -189,12 +186,8 @@ export function handleGemini(url: string | null, prompt: string | null = null): 
 
 export function getStoredRandomImagePrompt(): Promise<string> {
     return new Promise((resolve) => {
-        chrome.storage.local.get(
-            { stg_randomImagePrompt: DEFAULT_RANDOM_IMAGE_PROMPT },
-            ({ stg_randomImagePrompt }) => {
-                resolve((stg_randomImagePrompt as string) || '');
-            }
-        );
+        // Return default prompt for now (feature can be extended later)
+        resolve(DEFAULT_RANDOM_IMAGE_PROMPT);
     });
 }
 
@@ -296,11 +289,11 @@ export async function handleGeminiImage({
     }
 
     chrome.storage.local.get(
-        { stg_targetTab: DEFAULT_TARGET_TAB, stg_geminiModel: DEFAULT_GEMINI_MODEL },
+        { [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB, [STORAGE_KEYS.model]: DEFAULT_GEMINI_MODEL },
         (settings) => {
             const geminiUrl = getGeminiUrl();
 
-            openTargetTab(geminiUrl, settings.stg_targetTab as TargetTab, (newTab) => {
+            openTargetTab(geminiUrl, settings[STORAGE_KEYS.targetTab] as TargetTab, (newTab) => {
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
@@ -317,7 +310,7 @@ export async function handleGeminiImage({
                                         action: 'send_image',
                                         imageBase64: base64Data,
                                         prompt: promptToUse,
-                                        model: settings.stg_geminiModel,
+                                        model: settings[STORAGE_KEYS.model],
                                     });
                                 }, 1000);
                             }
@@ -373,11 +366,11 @@ export async function handleGeminiVideo({
     const promptToUse = prompt?.trim() || DEFAULT_VIDEO_PROMPT;
 
     chrome.storage.local.get(
-        { stg_targetTab: DEFAULT_TARGET_TAB, stg_geminiModel: DEFAULT_GEMINI_MODEL },
+        { [STORAGE_KEYS.targetTab]: DEFAULT_TARGET_TAB, [STORAGE_KEYS.model]: DEFAULT_GEMINI_MODEL },
         (settings) => {
             const geminiUrl = getGeminiUrl();
 
-            openTargetTab(geminiUrl, settings.stg_targetTab as TargetTab, (newTab) => {
+            openTargetTab(geminiUrl, settings[STORAGE_KEYS.targetTab] as TargetTab, (newTab) => {
                 if (!newTab?.id) return;
                 const tabId = newTab.id;
 
@@ -396,7 +389,7 @@ export async function handleGeminiVideo({
                                         mimeType: videoData.mimeType || '',
                                         prompt: promptToUse,
                                         filename,
-                                        model: settings.stg_geminiModel,
+                                        model: settings[STORAGE_KEYS.model],
                                     });
                                 }, 1000);
                             }

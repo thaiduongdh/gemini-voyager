@@ -9,6 +9,7 @@ import {
     DEFAULT_GEMINI_MODEL,
 } from '../../../../shared/modules/sendToGemini/config';
 import { parseYoutubeVideoId } from '../../../../shared/modules/sendToGemini/utils';
+import { STORAGE_KEYS, migrateStorageKeys } from '../../../../shared/modules/sendToGemini/storage';
 import { fetchTranscript } from './transcript_utils';
 import { appendDebugLog } from './logging';
 import { updateBadge, splitQueueByKind } from './queue_service';
@@ -41,17 +42,17 @@ function sendQueueStatus(
 function initListeners() {
     chrome.storage.onChanged.addListener((changes, area) => {
         if (area === 'local') {
-            if (changes.stg_videoQueue) {
+            if (changes[STORAGE_KEYS.queue]) {
                 updateBadge();
             }
-            if (changes.stg_showAdvancedMenu) {
+            if (changes[STORAGE_KEYS.advancedMenu]) {
                 refreshContextMenus();
             }
-            if (changes.stg_contextWorkflow) {
+            if (changes[STORAGE_KEYS.model]) {
                 refreshContextMenus();
             }
-            if (changes.stg_geminiAuthUser) {
-                setGeminiAuthUserCache(changes.stg_geminiAuthUser.newValue as string | number | null | undefined);
+            if (changes[STORAGE_KEYS.targetTab]) {
+                // Handle target tab change if needed
             }
         }
     });
@@ -185,27 +186,21 @@ function initListeners() {
 function initStorageDefaults() {
     chrome.storage.local.get(
         [
-            'stg_showFloatingBubble',
-            'stg_showAdvancedMenu',
-            'stg_contextWorkflow',
-            'stg_randomImagePrompt',
-            'stg_twoClickInstruction',
-            'stg_geminiAuthUser',
-            'stg_targetTab',
-            'stg_geminiModel',
+            STORAGE_KEYS.enabled,
+            STORAGE_KEYS.advancedMenu,
+            STORAGE_KEYS.model,
+            STORAGE_KEYS.targetTab,
+            STORAGE_KEYS.customPrompt,
+            STORAGE_KEYS.appendInstruction,
         ],
         (result) => {
             const defaults: Record<string, unknown> = {};
-            if (result.stg_showFloatingBubble === undefined) defaults.stg_showFloatingBubble = true;
-            if (result.stg_showAdvancedMenu === undefined) defaults.stg_showAdvancedMenu = false;
-            if (result.stg_contextWorkflow === undefined) defaults.stg_contextWorkflow = DEFAULT_CONTEXT_WORKFLOW;
-            if (result.stg_randomImagePrompt === undefined)
-                defaults.stg_randomImagePrompt = DEFAULT_RANDOM_IMAGE_PROMPT;
-            if (result.stg_twoClickInstruction === undefined)
-                defaults.stg_twoClickInstruction = DEFAULT_TWO_CLICK_INSTRUCTION;
-            if (result.stg_geminiAuthUser === undefined) defaults.stg_geminiAuthUser = DEFAULT_GEMINI_AUTH_USER;
-            if (result.stg_targetTab === undefined) defaults.stg_targetTab = DEFAULT_TARGET_TAB;
-            if (result.stg_geminiModel === undefined) defaults.stg_geminiModel = DEFAULT_GEMINI_MODEL;
+            if (result[STORAGE_KEYS.enabled] === undefined) defaults[STORAGE_KEYS.enabled] = true;
+            if (result[STORAGE_KEYS.advancedMenu] === undefined) defaults[STORAGE_KEYS.advancedMenu] = false;
+            if (result[STORAGE_KEYS.model] === undefined) defaults[STORAGE_KEYS.model] = DEFAULT_GEMINI_MODEL;
+            if (result[STORAGE_KEYS.targetTab] === undefined) defaults[STORAGE_KEYS.targetTab] = DEFAULT_TARGET_TAB;
+            if (result[STORAGE_KEYS.customPrompt] === undefined) defaults[STORAGE_KEYS.customPrompt] = '';
+            if (result[STORAGE_KEYS.appendInstruction] === undefined) defaults[STORAGE_KEYS.appendInstruction] = true;
             if (Object.keys(defaults).length) {
                 chrome.storage.local.set(defaults, refreshContextMenus);
             } else {
@@ -215,7 +210,9 @@ function initStorageDefaults() {
     );
 }
 
-export function initSendToGeminiModule() {
+export async function initSendToGeminiModule() {
+    // Migrate legacy stg_* keys to new gv* keys
+    await migrateStorageKeys();
 
     initStorageDefaults();
     updateBadge();

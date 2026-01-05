@@ -12,6 +12,7 @@ import { useWidthAdjuster } from '../../hooks/useWidthAdjuster';
 
 import { CloudSyncSettings } from './components/CloudSyncSettings';
 import { KeyboardShortcutSettings } from './components/KeyboardShortcutSettings';
+import { SendToGeminiSettings } from './components/SendToGeminiSettings';
 import { StarredHistory } from './components/StarredHistory';
 import {
   IconChatGPT,
@@ -642,6 +643,9 @@ export default function Popup() {
 
         {/* Keyboard Shortcuts */}
         <KeyboardShortcutSettings />
+
+        {/* Send to Gemini (YouTube) */}
+        <SendToGeminiSettings t={t} />
 
         {/* Prompt Manager Options */}
         <Card className="p-4 hover:shadow-lg transition-shadow">

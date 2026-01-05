@@ -3,6 +3,7 @@
 
 import type { QueueItem } from '../../../../shared/modules/sendToGemini/types';
 import { normalizeQueueItem, normalizeQueue, QUEUE_KINDS } from '../../../../shared/modules/sendToGemini/utils';
+import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 
 // Inlined CSS from floating_ui.css
 const STG_CSS = `
@@ -413,18 +414,18 @@ function initFloatingUI() {
   }
 
   function loadQueue(): void {
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-      updateQueueUI(normalizeQueue(result.stg_videoQueue));
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+      updateQueueUI(normalizeQueue(result[STORAGE_KEYS.queue]));
     });
   }
 
   // Listen for storage changes
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.stg_videoQueue) {
-      updateQueueUI(normalizeQueue(changes.stg_videoQueue.newValue));
+    if (area === 'local' && changes[STORAGE_KEYS.queue]) {
+      updateQueueUI(normalizeQueue(changes[STORAGE_KEYS.queue].newValue));
     }
-    if (area === 'local' && changes.stg_showAdvancedMenu) {
-      updateAdvancedToggleButton(changes.stg_showAdvancedMenu.newValue as boolean);
+    if (area === 'local' && changes[STORAGE_KEYS.advancedMenu]) {
+      updateAdvancedToggleButton(changes[STORAGE_KEYS.advancedMenu].newValue as boolean);
     }
   });
 
@@ -446,11 +447,11 @@ function initFloatingUI() {
       setLastAction('Invalid URL');
       return;
     }
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-      const queue = normalizeQueue(result.stg_videoQueue || []);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+      const queue = normalizeQueue(result[STORAGE_KEYS.queue] || []);
       if (!queue.some((entry) => entry.url === item.url)) {
         queue.push(item);
-        chrome.storage.local.set({ stg_videoQueue: queue }, () => {
+        chrome.storage.local.set({ [STORAGE_KEYS.queue]: queue }, () => {
           setLastAction('Added to queue', url);
         });
 
@@ -465,8 +466,8 @@ function initFloatingUI() {
   });
 
   btnSendAll.addEventListener('click', () => {
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-      const queue = normalizeQueue(result.stg_videoQueue);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+      const queue = normalizeQueue(result[STORAGE_KEYS.queue]);
       if (queue.length > 0) {
         chrome.runtime.sendMessage({ action: 'process_queue', queue, target: 'gemini' });
         setLastAction('Sent entire queue to Gemini');
@@ -477,10 +478,10 @@ function initFloatingUI() {
   });
 
   btnClear.addEventListener('click', () => {
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-      const queue = normalizeQueue(result.stg_videoQueue);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+      const queue = normalizeQueue(result[STORAGE_KEYS.queue]);
       if (queue.length > 0) {
-        chrome.storage.local.set({ stg_videoQueue: [] }, () => setLastAction('Cleared queue'));
+        chrome.storage.local.set({ [STORAGE_KEYS.queue]: [] }, () => setLastAction('Cleared queue'));
       } else {
         setLastAction('Queue is already empty');
       }
@@ -489,12 +490,12 @@ function initFloatingUI() {
 
   btnUndo.addEventListener('click', () => {
     if (!lastQueuedUrl) return;
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-      const queue = normalizeQueue(result.stg_videoQueue || []);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+      const queue = normalizeQueue(result[STORAGE_KEYS.queue] || []);
       const idx = queue.map((item) => item.url).lastIndexOf(lastQueuedUrl!);
       if (idx >= 0) {
         queue.splice(idx, 1);
-        chrome.storage.local.set({ stg_videoQueue: queue }, () => {
+        chrome.storage.local.set({ [STORAGE_KEYS.queue]: queue }, () => {
           setLastAction('Removed last add');
         });
       } else {
@@ -505,7 +506,7 @@ function initFloatingUI() {
 
   btnToggleAdvanced.addEventListener('click', () => {
     const next = !advancedMenuOn;
-    chrome.storage.local.set({ stg_showAdvancedMenu: next }, () => {
+    chrome.storage.local.set({ [STORAGE_KEYS.advancedMenu]: next }, () => {
       updateAdvancedToggleButton(next);
     });
   });
@@ -528,11 +529,11 @@ function initFloatingUI() {
 
     const droppedItem = normalizeQueueItem(url);
     if (droppedItem) {
-      chrome.storage.local.get(['stg_videoQueue'], (result) => {
-        const queue = normalizeQueue(result.stg_videoQueue || []);
+      chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+        const queue = normalizeQueue(result[STORAGE_KEYS.queue] || []);
         if (!queue.some((entry) => entry.url === droppedItem.url)) {
           queue.push(droppedItem);
-          chrome.storage.local.set({ stg_videoQueue: queue }, () =>
+          chrome.storage.local.set({ [STORAGE_KEYS.queue]: queue }, () =>
             setLastAction('Added dropped URL', droppedItem.url)
           );
 
@@ -565,16 +566,16 @@ function initFloatingUI() {
     loadQueue();
 
     // Check visibility setting
-    chrome.storage.local.get(['stg_showFloatingBubble'], (result) => {
-      if (result.stg_showFloatingBubble === false) {
+    chrome.storage.local.get([STORAGE_KEYS.enabled], (result) => {
+      if (result[STORAGE_KEYS.enabled] === false) {
         host.style.display = 'none';
       } else {
         host.style.display = 'block';
       }
     });
 
-    chrome.storage.local.get(['stg_showAdvancedMenu'], (result) => {
-      updateAdvancedToggleButton(result.stg_showAdvancedMenu === true);
+    chrome.storage.local.get([STORAGE_KEYS.advancedMenu], (result) => {
+      updateAdvancedToggleButton(result[STORAGE_KEYS.advancedMenu] === true);
     });
 
     watchSharePanelForGeminiButton();
@@ -585,11 +586,11 @@ function initFloatingUI() {
   // Listen for storage changes (queue and visibility)
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
-      if (changes.stg_videoQueue) {
-        updateQueueUI(normalizeQueue(changes.stg_videoQueue.newValue));
+      if (changes[STORAGE_KEYS.queue]) {
+        updateQueueUI(normalizeQueue(changes[STORAGE_KEYS.queue].newValue));
       }
-      if (changes.stg_showFloatingBubble) {
-        host.style.display = changes.stg_showFloatingBubble.newValue ? 'block' : 'none';
+      if (changes[STORAGE_KEYS.enabled]) {
+        host.style.display = changes[STORAGE_KEYS.enabled].newValue ? 'block' : 'none';
       }
     }
   });

@@ -9,6 +9,7 @@ import {
     INSTRUCTION_PRESETS,
 } from '../../../../shared/modules/sendToGemini/config';
 import { detectContentType, isHttpUrl, QUEUE_KINDS } from '../../../../shared/modules/sendToGemini/utils';
+import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 import { appendDebugLog } from './logging';
 import { handleGemini, handleGeminiImage, handleGeminiVideo } from './gemini_service';
 import { handleChatGPT } from './chatgpt_service';
@@ -33,15 +34,8 @@ function setContextWorkflowMode(value: unknown): void {
 
 // Ensure listeners are added only once by exposing init function
 export function initContextMenus() {
-    chrome.storage.local.get({ stg_contextWorkflow: DEFAULT_CONTEXT_WORKFLOW }, ({ stg_contextWorkflow }) => {
-        setContextWorkflowMode(stg_contextWorkflow);
-    });
-
-    chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local' && changes.stg_contextWorkflow) {
-            setContextWorkflowMode(changes.stg_contextWorkflow.newValue);
-        }
-    });
+    // Context workflow is simplified - use default
+    setContextWorkflowMode(DEFAULT_CONTEXT_WORKFLOW);
 
     // Dynamic menu updates
     const onShown = (chrome.contextMenus as any).onShown;
@@ -317,31 +311,32 @@ export function refreshContextMenus(): void {
     contextMenuRefreshInProgress = true;
 
     chrome.storage.local.get(
-        { stg_showAdvancedMenu: false, stg_contextWorkflow: DEFAULT_CONTEXT_WORKFLOW },
-        ({ stg_showAdvancedMenu, stg_contextWorkflow }) => {
-            const workflow = normalizeContextWorkflow(stg_contextWorkflow);
+        { [STORAGE_KEYS.advancedMenu]: false },
+        (result) => {
+            const advancedMenu = result[STORAGE_KEYS.advancedMenu];
+            const workflow = contextWorkflowMode;
 
-            if (menusInitialized && lastMenuMode === stg_showAdvancedMenu && lastWorkflowMode === workflow) {
+            if (menusInitialized && lastMenuMode === advancedMenu && lastWorkflowMode === workflow) {
                 contextMenuRefreshInProgress = false;
                 return;
             }
 
             chrome.contextMenus.removeAll(() => {
-                if (stg_showAdvancedMenu) {
+                if (advancedMenu) {
                     createAdvancedMenus(workflow);
                 } else {
                     createQuickMenus(workflow);
                 }
 
                 menusInitialized = true;
-                lastMenuMode = Boolean(stg_showAdvancedMenu);
+                lastMenuMode = Boolean(advancedMenu);
                 lastWorkflowMode = workflow;
                 contextMenuRefreshInProgress = false;
 
                 appendDebugLog({
                     level: 'info',
                     message: 'Context menus refreshed',
-                    meta: { advancedMenu: stg_showAdvancedMenu, workflow },
+                    meta: { advancedMenu, workflow },
                 });
 
                 if (contextMenuRefreshQueued) {

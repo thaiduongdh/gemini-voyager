@@ -1,6 +1,7 @@
 
 import type { QueueItem } from '../../../../shared/modules/sendToGemini/types';
 import { normalizeQueueItem, normalizeQueue, QUEUE_KINDS } from '../../../../shared/modules/sendToGemini/utils';
+import { STORAGE_KEYS } from '../../../../shared/modules/sendToGemini/storage';
 import { appendDebugLog } from './logging';
 
 let badgeTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -26,8 +27,8 @@ export function showTemporaryBadge(text: string, color = '#4caf50'): void {
 }
 
 export function updateBadge(): void {
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-        const queue = normalizeQueue(result.stg_videoQueue);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+        const queue = normalizeQueue(result[STORAGE_KEYS.queue]);
         setBadge(queue.length);
     });
 }
@@ -42,11 +43,11 @@ export function addQueueItem(item: string | { url: string; kind?: string }, sour
         });
         return;
     }
-    chrome.storage.local.get(['stg_videoQueue'], (result) => {
-        const queue = normalizeQueue(result.stg_videoQueue || []);
+    chrome.storage.local.get([STORAGE_KEYS.queue], (result) => {
+        const queue = normalizeQueue(result[STORAGE_KEYS.queue] || []);
         if (queue.some((entry) => entry.url === normalized.url)) return;
         queue.push(normalized);
-        chrome.storage.local.set({ stg_videoQueue: queue }, updateBadge);
+        chrome.storage.local.set({ [STORAGE_KEYS.queue]: queue }, updateBadge);
         appendDebugLog({
             level: 'info',
             message: 'Added item to queue via context menu',
